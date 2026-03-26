@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/Humphrey-He/star-flow-scheduler/apps/scheduler/rpc/internal/state"
+	"github.com/Humphrey-He/star-flow-scheduler/pkg/metricsx"
 )
 
 type Service struct {
@@ -30,6 +31,15 @@ func (s *Service) Transition(ctx context.Context, instanceNo string, from state.
 	rows, err := s.instances.UpdateStatusIf(ctx, instanceNo, string(from), string(to))
 	if err != nil {
 		return false, err
+	}
+
+	if rows > 0 {
+		if to == state.StatusRetryWait {
+			metricsx.Inc("scheduler_retry_total")
+		}
+		if to == state.StatusDead {
+			metricsx.Inc("scheduler_dead_letter_total")
+		}
 	}
 
 	return rows > 0, nil
@@ -63,6 +73,13 @@ func (s *Service) ReportResult(ctx context.Context, instanceNo string, status st
 			return 0, nil
 		}
 		return 0, errors.New("status conflict")
+	}
+
+	if to == state.StatusRetryWait {
+		metricsx.Inc("scheduler_retry_total")
+	}
+	if to == state.StatusDead {
+		metricsx.Inc("scheduler_dead_letter_total")
 	}
 
 	return rows, nil
