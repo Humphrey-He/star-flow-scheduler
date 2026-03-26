@@ -39,7 +39,7 @@ func (Executor) Fields() []ent.Field {
 		field.String("version").MaxLen(32).Optional().Nillable(),
 		field.String("status").MaxLen(32).Default("online"),
 		field.Time("last_heartbeat_at"),
-		field.JSON("metadata", map[string]interface{}{}).Optional().Nillable(),
+		field.JSON("metadata", map[string]interface{}{}).Optional(),
 	}
 }
 
