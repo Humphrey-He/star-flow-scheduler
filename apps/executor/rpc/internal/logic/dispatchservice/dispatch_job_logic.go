@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/Humphrey-He/star-flow-scheduler/apps/executor/rpc/internal/svc"
-	schedulerv1_schedulev1 "github.com/Humphrey-He/star-flow-scheduler/proto/pb/github.com/Humphrey-He/star-flow-scheduler/proto/schedulerv1"
+	schedulev1 "github.com/Humphrey-He/star-flow-scheduler/proto/pb/github.com/Humphrey-He/star-flow-scheduler/proto/schedulerv1"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )
@@ -23,12 +23,12 @@ func NewDispatchJobLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Dispa
 	}
 }
 
-func (l *DispatchJobLogic) DispatchJob(in *schedulerv1_schedulev1.DispatchJobRequest) (*schedulerv1_schedulev1.DispatchJobResponse, error) {
+func (l *DispatchJobLogic) DispatchJob(in *schedulev1.DispatchJobRequest) (*schedulev1.DispatchJobResponse, error) {
 	err := l.svcCtx.DispatchSvc.DispatchJob(l.ctx, in)
 	if err != nil {
 		l.Logger.Errorf("dispatch job failed instance=%s err=%v", in.InstanceNo, err)
-		return &schedulerv1_schedulev1.DispatchJobResponse{Accepted: false, Message: err.Error()}, nil
+		return &schedulev1.DispatchJobResponse{Accepted: false, Message: err.Error()}, nil
 	}
 
-	return &schedulerv1_schedulev1.DispatchJobResponse{Accepted: true, Message: "accepted"}, nil
+	return &schedulev1.DispatchJobResponse{Accepted: true, Message: "accepted"}, nil
 }

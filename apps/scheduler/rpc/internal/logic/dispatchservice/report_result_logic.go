@@ -6,7 +6,7 @@ import (
 
 	"github.com/Humphrey-He/star-flow-scheduler/apps/scheduler/rpc/internal/state"
 	"github.com/Humphrey-He/star-flow-scheduler/apps/scheduler/rpc/internal/svc"
-	schedulerv1_schedulev1 "github.com/Humphrey-He/star-flow-scheduler/proto/pb/github.com/Humphrey-He/star-flow-scheduler/proto/schedulerv1"
+	schedulev1 "github.com/Humphrey-He/star-flow-scheduler/proto/pb/github.com/Humphrey-He/star-flow-scheduler/proto/schedulerv1"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )
@@ -25,7 +25,7 @@ func NewReportResultLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Repo
 	}
 }
 
-func (l *ReportResultLogic) ReportResult(in *schedulerv1_schedulev1.ReportResultRequest) (*schedulerv1_schedulev1.ReportResultResponse, error) {
+func (l *ReportResultLogic) ReportResult(in *schedulev1.ReportResultRequest) (*schedulev1.ReportResultResponse, error) {
 	status := mapReportStatus(in.Status)
 	startAt := unixMilliPtr(in.StartTime)
 	finishAt := unixMilliPtr(in.FinishTime)
@@ -34,18 +34,18 @@ func (l *ReportResultLogic) ReportResult(in *schedulerv1_schedulev1.ReportResult
 		return nil, err
 	}
 
-	return &schedulerv1_schedulev1.ReportResultResponse{Ok: true}, nil
+	return &schedulev1.ReportResultResponse{Ok: true}, nil
 }
 
-func mapReportStatus(status schedulerv1_schedulev1.InstanceStatus) state.InstanceStatus {
+func mapReportStatus(status schedulev1.InstanceStatus) state.InstanceStatus {
 	switch status {
-	case schedulerv1_schedulev1.InstanceStatus_INSTANCE_STATUS_SUCCESS:
+	case schedulev1.InstanceStatus_INSTANCE_STATUS_SUCCESS:
 		return state.StatusSuccess
-	case schedulerv1_schedulev1.InstanceStatus_INSTANCE_STATUS_FAILED:
+	case schedulev1.InstanceStatus_INSTANCE_STATUS_FAILED:
 		return state.StatusFailed
-	case schedulerv1_schedulev1.InstanceStatus_INSTANCE_STATUS_RUNNING:
+	case schedulev1.InstanceStatus_INSTANCE_STATUS_RUNNING:
 		return state.StatusRunning
-	case schedulerv1_schedulev1.InstanceStatus_INSTANCE_STATUS_DISPATCHED:
+	case schedulev1.InstanceStatus_INSTANCE_STATUS_DISPATCHED:
 		return state.StatusDispatched
 	default:
 		return state.StatusFailed

@@ -28,9 +28,9 @@ func main() {
 	ctx := svc.NewServiceContext(c)
 
 	s := zrpc.MustNewServer(c.RpcServerConf, func(grpcServer *grpc.Server) {
-		schedulerv1_schedulev1.RegisterExecutorRegistryServiceServer(grpcServer, executorregistryserviceServer.NewExecutorRegistryServiceServer(ctx))
-		schedulerv1_schedulev1.RegisterDispatchServiceServer(grpcServer, dispatchserviceServer.NewDispatchServiceServer(ctx))
-		schedulerv1_schedulev1.RegisterSchedulerInternalServiceServer(grpcServer, schedulerinternalserviceServer.NewSchedulerInternalServiceServer(ctx))
+		schedulev1.RegisterExecutorRegistryServiceServer(grpcServer, executorregistryserviceServer.NewExecutorRegistryServiceServer(ctx))
+		schedulev1.RegisterDispatchServiceServer(grpcServer, dispatchserviceServer.NewDispatchServiceServer(ctx))
+		schedulev1.RegisterSchedulerInternalServiceServer(grpcServer, schedulerinternalserviceServer.NewSchedulerInternalServiceServer(ctx))
 
 		if c.Mode == service.DevMode || c.Mode == service.TestMode {
 			reflection.Register(grpcServer)

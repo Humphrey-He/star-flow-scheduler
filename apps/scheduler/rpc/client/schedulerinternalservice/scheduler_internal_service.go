@@ -7,17 +7,17 @@ package schedulerinternalservice
 import (
 	"context"
 
-	schedulerv1_schedulev1 "github.com/Humphrey-He/star-flow-scheduler/proto/pb/github.com/Humphrey-He/star-flow-scheduler/proto/schedulerv1"
+	schedulev1 "github.com/Humphrey-He/star-flow-scheduler/proto/pb/github.com/Humphrey-He/star-flow-scheduler/proto/schedulerv1"
 
 	"github.com/zeromicro/go-zero/zrpc"
 	"google.golang.org/grpc"
 )
 
 type (
-	CreateInstanceRequest    = schedulerv1_schedulev1.CreateInstanceRequest
-	CreateInstanceResponse   = schedulerv1_schedulev1.CreateInstanceResponse
-	DispatchInstanceRequest  = schedulerv1_schedulev1.DispatchInstanceRequest
-	DispatchInstanceResponse = schedulerv1_schedulev1.DispatchInstanceResponse
+	CreateInstanceRequest    = schedulev1.CreateInstanceRequest
+	CreateInstanceResponse   = schedulev1.CreateInstanceResponse
+	DispatchInstanceRequest  = schedulev1.DispatchInstanceRequest
+	DispatchInstanceResponse = schedulev1.DispatchInstanceResponse
 
 	SchedulerInternalService interface {
 		CreateInstance(ctx context.Context, in *CreateInstanceRequest, opts ...grpc.CallOption) (*CreateInstanceResponse, error)
@@ -36,11 +36,11 @@ func NewSchedulerInternalService(cli zrpc.Client) SchedulerInternalService {
 }
 
 func (m *defaultSchedulerInternalService) CreateInstance(ctx context.Context, in *CreateInstanceRequest, opts ...grpc.CallOption) (*CreateInstanceResponse, error) {
-	client := schedulerv1_schedulev1.NewSchedulerInternalServiceClient(m.cli.Conn())
+	client := schedulev1.NewSchedulerInternalServiceClient(m.cli.Conn())
 	return client.CreateInstance(ctx, in, opts...)
 }
 
 func (m *defaultSchedulerInternalService) DispatchInstance(ctx context.Context, in *DispatchInstanceRequest, opts ...grpc.CallOption) (*DispatchInstanceResponse, error) {
-	client := schedulerv1_schedulev1.NewSchedulerInternalServiceClient(m.cli.Conn())
+	client := schedulev1.NewSchedulerInternalServiceClient(m.cli.Conn())
 	return client.DispatchInstance(ctx, in, opts...)
 }

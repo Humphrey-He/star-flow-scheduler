@@ -9,12 +9,12 @@ import (
 
 	"github.com/Humphrey-He/star-flow-scheduler/apps/executor/rpc/internal/logic/executorregistryservice"
 	"github.com/Humphrey-He/star-flow-scheduler/apps/executor/rpc/internal/svc"
-	schedulerv1_schedulev1 "github.com/Humphrey-He/star-flow-scheduler/proto/pb/github.com/Humphrey-He/star-flow-scheduler/proto/schedulerv1"
+	schedulev1 "github.com/Humphrey-He/star-flow-scheduler/proto/pb/github.com/Humphrey-He/star-flow-scheduler/proto/schedulerv1"
 )
 
 type ExecutorRegistryServiceServer struct {
 	svcCtx *svc.ServiceContext
-	schedulerv1_schedulev1.UnimplementedExecutorRegistryServiceServer
+	schedulev1.UnimplementedExecutorRegistryServiceServer
 }
 
 func NewExecutorRegistryServiceServer(svcCtx *svc.ServiceContext) *ExecutorRegistryServiceServer {
@@ -23,12 +23,12 @@ func NewExecutorRegistryServiceServer(svcCtx *svc.ServiceContext) *ExecutorRegis
 	}
 }
 
-func (s *ExecutorRegistryServiceServer) RegisterExecutor(ctx context.Context, in *schedulerv1_schedulev1.RegisterExecutorRequest) (*schedulerv1_schedulev1.RegisterExecutorResponse, error) {
+func (s *ExecutorRegistryServiceServer) RegisterExecutor(ctx context.Context, in *schedulev1.RegisterExecutorRequest) (*schedulev1.RegisterExecutorResponse, error) {
 	l := executorregistryservicelogic.NewRegisterExecutorLogic(ctx, s.svcCtx)
 	return l.RegisterExecutor(in)
 }
 
-func (s *ExecutorRegistryServiceServer) Heartbeat(ctx context.Context, in *schedulerv1_schedulev1.HeartbeatRequest) (*schedulerv1_schedulev1.HeartbeatResponse, error) {
+func (s *ExecutorRegistryServiceServer) Heartbeat(ctx context.Context, in *schedulev1.HeartbeatRequest) (*schedulev1.HeartbeatResponse, error) {
 	l := executorregistryservicelogic.NewHeartbeatLogic(ctx, s.svcCtx)
 	return l.Heartbeat(in)
 }

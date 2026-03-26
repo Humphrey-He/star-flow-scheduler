@@ -6,21 +6,21 @@ package dispatchservice
 
 import (
 	"context"
-	schedulerv1_schedulev1 "github.com/Humphrey-He/star-flow-scheduler/proto/pb/github.com/Humphrey-He/star-flow-scheduler/proto/schedulerv1"
+	schedulev1 "github.com/Humphrey-He/star-flow-scheduler/proto/pb/github.com/Humphrey-He/star-flow-scheduler/proto/schedulerv1"
 
 	"github.com/zeromicro/go-zero/zrpc"
 	"google.golang.org/grpc"
 )
 
 type (
-	DispatchJobRequest       = schedulerv1_schedulev1.DispatchJobRequest
-	DispatchJobResponse      = schedulerv1_schedulev1.DispatchJobResponse
-	HeartbeatRequest         = schedulerv1_schedulev1.HeartbeatRequest
-	HeartbeatResponse        = schedulerv1_schedulev1.HeartbeatResponse
-	RegisterExecutorRequest  = schedulerv1_schedulev1.RegisterExecutorRequest
-	RegisterExecutorResponse = schedulerv1_schedulev1.RegisterExecutorResponse
-	ReportResultRequest      = schedulerv1_schedulev1.ReportResultRequest
-	ReportResultResponse     = schedulerv1_schedulev1.ReportResultResponse
+	DispatchJobRequest       = schedulev1.DispatchJobRequest
+	DispatchJobResponse      = schedulev1.DispatchJobResponse
+	HeartbeatRequest         = schedulev1.HeartbeatRequest
+	HeartbeatResponse        = schedulev1.HeartbeatResponse
+	RegisterExecutorRequest  = schedulev1.RegisterExecutorRequest
+	RegisterExecutorResponse = schedulev1.RegisterExecutorResponse
+	ReportResultRequest      = schedulev1.ReportResultRequest
+	ReportResultResponse     = schedulev1.ReportResultResponse
 
 	DispatchService interface {
 		DispatchJob(ctx context.Context, in *DispatchJobRequest, opts ...grpc.CallOption) (*DispatchJobResponse, error)
@@ -39,11 +39,11 @@ func NewDispatchService(cli zrpc.Client) DispatchService {
 }
 
 func (m *defaultDispatchService) DispatchJob(ctx context.Context, in *DispatchJobRequest, opts ...grpc.CallOption) (*DispatchJobResponse, error) {
-	client := schedulerv1_schedulev1.NewDispatchServiceClient(m.cli.Conn())
+	client := schedulev1.NewDispatchServiceClient(m.cli.Conn())
 	return client.DispatchJob(ctx, in, opts...)
 }
 
 func (m *defaultDispatchService) ReportResult(ctx context.Context, in *ReportResultRequest, opts ...grpc.CallOption) (*ReportResultResponse, error) {
-	client := schedulerv1_schedulev1.NewDispatchServiceClient(m.cli.Conn())
+	client := schedulev1.NewDispatchServiceClient(m.cli.Conn())
 	return client.ReportResult(ctx, in, opts...)
 }

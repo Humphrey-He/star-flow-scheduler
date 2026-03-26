@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/Humphrey-He/star-flow-scheduler/apps/scheduler/rpc/internal/svc"
-	schedulerv1_schedulev1 "github.com/Humphrey-He/star-flow-scheduler/proto/pb/github.com/Humphrey-He/star-flow-scheduler/proto/schedulerv1"
+	schedulev1 "github.com/Humphrey-He/star-flow-scheduler/proto/pb/github.com/Humphrey-He/star-flow-scheduler/proto/schedulerv1"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )
@@ -23,9 +23,9 @@ func NewDispatchJobLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Dispa
 	}
 }
 
-func (l *DispatchJobLogic) DispatchJob(in *schedulerv1_schedulev1.DispatchJobRequest) (*schedulerv1_schedulev1.DispatchJobResponse, error) {
+func (l *DispatchJobLogic) DispatchJob(in *schedulev1.DispatchJobRequest) (*schedulev1.DispatchJobResponse, error) {
 	_ = l.svcCtx.DispatchSvc
-	return &schedulerv1_schedulev1.DispatchJobResponse{
+	return &schedulev1.DispatchJobResponse{
 		Accepted: false,
 		Message:  "dispatch not supported on scheduler rpc",
 	}, nil

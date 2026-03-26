@@ -12,7 +12,7 @@ import (
 	"github.com/Humphrey-He/star-flow-scheduler/apps/scheduler/rpc/internal/state"
 	"github.com/Humphrey-He/star-flow-scheduler/pkg/ent"
 	pkgrepo "github.com/Humphrey-He/star-flow-scheduler/pkg/repo"
-	schedulerv1_schedulev1 "github.com/Humphrey-He/star-flow-scheduler/proto/pb/github.com/Humphrey-He/star-flow-scheduler/proto/schedulerv1"
+	schedulev1 "github.com/Humphrey-He/star-flow-scheduler/proto/pb/github.com/Humphrey-He/star-flow-scheduler/proto/schedulerv1"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -116,10 +116,10 @@ func (s *Service) dispatchToExecutor(ctx context.Context, exec *ent.Executor, in
 	}
 	defer conn.Close()
 
-	client := schedulerv1_schedulev1.NewDispatchServiceClient(conn)
+	client := schedulev1.NewDispatchServiceClient(conn)
 
-	payload := &schedulerv1_schedulev1.JobPayload{Raw: []byte(ptrString(instance.Payload))}
-	_, err = client.DispatchJob(ctx, &schedulerv1_schedulev1.DispatchJobRequest{
+	payload := &schedulev1.JobPayload{Raw: []byte(ptrString(instance.Payload))}
+	_, err = client.DispatchJob(ctx, &schedulev1.DispatchJobRequest{
 		InstanceNo:  instance.InstanceNo,
 		JobCode:     job.JobCode,
 		HandlerName: job.HandlerName,

@@ -9,7 +9,7 @@ import (
 
 	"github.com/Humphrey-He/star-flow-scheduler/apps/executor/rpc/internal/handler"
 	"github.com/Humphrey-He/star-flow-scheduler/apps/executor/rpc/internal/model"
-	schedulerv1_schedulev1 "github.com/Humphrey-He/star-flow-scheduler/proto/pb/github.com/Humphrey-He/star-flow-scheduler/proto/schedulerv1"
+	schedulev1 "github.com/Humphrey-He/star-flow-scheduler/proto/pb/github.com/Humphrey-He/star-flow-scheduler/proto/schedulerv1"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )
@@ -66,13 +66,13 @@ func (p *WorkerPool) executeTask(ctx context.Context, task *model.Task) {
 	result := &model.TaskResult{
 		InstanceNo: task.InstanceNo,
 		ShardNo:    task.ShardNo,
-		Status:     schedulerv1_schedulev1.InstanceStatus_INSTANCE_STATUS_SUCCESS,
+		Status:     schedulev1.InstanceStatus_INSTANCE_STATUS_SUCCESS,
 		StartTime:  start,
 	}
 
 	h, ok := p.registry.Get(task.HandlerName)
 	if !ok {
-		result.Status = schedulerv1_schedulev1.InstanceStatus_INSTANCE_STATUS_FAILED
+		result.Status = schedulev1.InstanceStatus_INSTANCE_STATUS_FAILED
 		result.ErrorCode = "handler_not_found"
 		result.ErrorMessage = fmt.Sprintf("handler not registered: %s", task.HandlerName)
 		result.FinishTime = time.Now()
@@ -90,13 +90,13 @@ func (p *WorkerPool) executeTask(ctx context.Context, task *model.Task) {
 
 	err := p.runHandler(execCtx, h, task.Payload)
 	if err != nil {
-		result.Status = schedulerv1_schedulev1.InstanceStatus_INSTANCE_STATUS_FAILED
+		result.Status = schedulev1.InstanceStatus_INSTANCE_STATUS_FAILED
 		result.ErrorCode = "execute_failed"
 		result.ErrorMessage = err.Error()
 	}
 
 	if errors.Is(execCtx.Err(), context.DeadlineExceeded) {
-		result.Status = schedulerv1_schedulev1.InstanceStatus_INSTANCE_STATUS_FAILED
+		result.Status = schedulev1.InstanceStatus_INSTANCE_STATUS_FAILED
 		result.ErrorCode = "timeout"
 		result.ErrorMessage = "task timeout"
 	}
