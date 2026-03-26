@@ -32,6 +32,36 @@ func NewExecutorRepository(client *ent.Client) *ExecutorRepository {
 }
 
 func (r *ExecutorRepository) Upsert(ctx context.Context, req ExecutorUpsert) (*ent.Executor, error) {
+	existing, err := r.client.Executor.Query().Where(executor.ExecutorCodeEQ(req.ExecutorCode)).Only(ctx)
+	if err == nil {
+		update := r.client.Executor.UpdateOne(existing).
+			SetHost(req.Host).
+			SetIP(req.IP).
+			SetGrpcAddr(req.GrpcAddr).
+			SetCapacity(req.Capacity).
+			SetCurrentLoad(req.CurrentLoad).
+			SetStatus(req.Status).
+			SetLastHeartbeatAt(req.LastHeartbeat)
+
+		if req.HttpAddr != nil {
+			update.SetHTTPAddr(*req.HttpAddr)
+		}
+		if req.Tags != nil {
+			update.SetTags(*req.Tags)
+		}
+		if req.Version != nil {
+			update.SetVersion(*req.Version)
+		}
+		if req.Metadata != nil {
+			update.SetMetadata(req.Metadata)
+		}
+
+		return update.Save(ctx)
+	}
+	if !ent.IsNotFound(err) {
+		return nil, err
+	}
+
 	create := r.client.Executor.Create().
 		SetExecutorCode(req.ExecutorCode).
 		SetHost(req.Host).
@@ -43,7 +73,7 @@ func (r *ExecutorRepository) Upsert(ctx context.Context, req ExecutorUpsert) (*e
 		SetLastHeartbeatAt(req.LastHeartbeat)
 
 	if req.HttpAddr != nil {
-		create.SetHttpAddr(*req.HttpAddr)
+		create.SetHTTPAddr(*req.HttpAddr)
 	}
 	if req.Tags != nil {
 		create.SetTags(*req.Tags)
@@ -55,9 +85,7 @@ func (r *ExecutorRepository) Upsert(ctx context.Context, req ExecutorUpsert) (*e
 		create.SetMetadata(req.Metadata)
 	}
 
-	return create.OnConflictColumns(executor.FieldExecutorCode).
-		UpdateNewValues().
-		Save(ctx)
+	return create.Save(ctx)
 }
 
 func (r *ExecutorRepository) UpdateHeartbeat(ctx context.Context, executorCode string, currentLoad int) error {

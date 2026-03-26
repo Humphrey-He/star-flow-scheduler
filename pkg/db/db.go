@@ -8,7 +8,6 @@ import (
 	"entgo.io/ent/dialect"
 	entsql "entgo.io/ent/dialect/sql"
 	"github.com/Humphrey-He/star-flow-scheduler/pkg/ent"
-	"github.com/jackc/pgx/v5/stdlib"
 )
 
 type DB struct {
@@ -57,8 +56,4 @@ func Transact(ctx context.Context, client *ent.Client, fn func(ctx context.Conte
 		return err
 	}
 	return tx.Commit()
-}
-
-func init() {
-	stdlib.RegisterDefaultPgxTypeMap()
 }

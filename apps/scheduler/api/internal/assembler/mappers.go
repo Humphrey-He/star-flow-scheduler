@@ -26,7 +26,7 @@ func formatTimePtr(t *time.Time) *string {
 
 func MapJobDefinition(job *ent.JobDefinition) types.JobDefinition {
 	return types.JobDefinition{
-		Id:                job.ID,
+		Id:                int64(job.ID),
 		JobCode:           job.JobCode,
 		JobName:           job.JobName,
 		JobType:           job.JobType,
@@ -53,7 +53,7 @@ func MapJobDefinition(job *ent.JobDefinition) types.JobDefinition {
 
 func MapJobInstance(instance *ent.JobInstance) types.JobInstance {
 	return types.JobInstance{
-		Id:             instance.ID,
+		Id:             int64(instance.ID),
 		InstanceNo:     instance.InstanceNo,
 		JobId:          instance.JobID,
 		WorkflowId:     instance.WorkflowID,

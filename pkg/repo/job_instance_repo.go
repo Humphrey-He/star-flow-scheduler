@@ -45,7 +45,7 @@ func (r *JobInstanceRepository) List(ctx context.Context, filter JobInstanceFilt
 			}
 			return nil, 0, err
 		}
-		query = query.Where(jobinstance.JobIDEQ(job.ID))
+		query = query.Where(jobinstance.JobIDEQ(int64(job.ID)))
 	}
 
 	if filter.Status != "" {

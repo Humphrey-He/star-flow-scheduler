@@ -33,7 +33,7 @@ func (l *CreateJobLogic) CreateJob(req *types.CreateJobRequest) (resp *types.Cre
 	}
 
 	return &types.CreateJobResponse{
-		JobId:   created.ID,
+		JobId:   int64(created.ID),
 		JobCode: created.JobCode,
 	}, nil
 }
