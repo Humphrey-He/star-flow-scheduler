@@ -18,6 +18,7 @@ type ServiceContext struct {
 	DB           *db.DB
 	Ent          *ent.Client
 	ExecutorRepo *repo.ExecutorRepository
+	InstanceRepo *repo.JobInstanceRepository
 	RegistrySvc  *registry.Service
 	DispatchSvc  *dispatch.Service
 	InstanceSvc  *instance.Service
@@ -30,14 +31,16 @@ func NewServiceContext(c config.Config) *ServiceContext {
 	}
 
 	executorRepo := repo.NewExecutorRepository(pkgrepo.NewExecutorRepository(database.Client))
+	instanceRepo := repo.NewJobInstanceRepository(database.Client)
 
 	return &ServiceContext{
 		Config:       c,
 		DB:           database,
 		Ent:          database.Client,
 		ExecutorRepo: executorRepo,
+		InstanceRepo: instanceRepo,
 		RegistrySvc:  registry.NewService(executorRepo),
 		DispatchSvc:  dispatch.NewService(),
-		InstanceSvc:  instance.NewService(),
+		InstanceSvc:  instance.NewService(instanceRepo),
 	}
 }
