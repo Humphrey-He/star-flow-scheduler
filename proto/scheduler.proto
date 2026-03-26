@@ -1,0 +1,74 @@
+syntax = "proto3";
+
+package starflow.scheduler.v1;
+
+option go_package = "starflow-scheduler/proto;proto";
+
+message RegisterExecutorRequest {
+  string executor_code = 1;
+  string host = 2;
+  string ip = 3;
+  string grpc_addr = 4;
+  string http_addr = 5;
+  string tags = 6;
+  int32 capacity = 7;
+  string version = 8;
+  string metadata_json = 9;
+}
+
+message RegisterExecutorResponse {
+  int64 executor_id = 1;
+  int32 heartbeat_interval_sec = 2;
+}
+
+message HeartbeatRequest {
+  string executor_code = 1;
+  int32 current_load = 2;
+  int32 running_jobs = 3;
+  int64 timestamp_unix = 4;
+}
+
+message HeartbeatResponse {
+  bool ok = 1;
+}
+
+message DispatchJobRequest {
+  string instance_no = 1;
+  string job_code = 2;
+  string handler_name = 3;
+  string shard_no = 4;
+  int32 timeout_ms = 5;
+  string payload_json = 6;
+  string trace_id = 7;
+  string idempotent_key = 8;
+}
+
+message DispatchJobResponse {
+  bool accepted = 1;
+  string message = 2;
+}
+
+message ReportResultRequest {
+  string instance_no = 1;
+  string shard_no = 2;
+  string status = 3;
+  int64 start_time_unix = 4;
+  int64 finish_time_unix = 5;
+  string error_code = 6;
+  string error_message = 7;
+  string result_summary = 8;
+}
+
+message ReportResultResponse {
+  bool ok = 1;
+}
+
+service SchedulerService {
+  rpc RegisterExecutor(RegisterExecutorRequest) returns (RegisterExecutorResponse);
+  rpc Heartbeat(HeartbeatRequest) returns (HeartbeatResponse);
+  rpc ReportResult(ReportResultRequest) returns (ReportResultResponse);
+}
+
+service ExecutorService {
+  rpc DispatchJob(DispatchJobRequest) returns (DispatchJobResponse);
+}
