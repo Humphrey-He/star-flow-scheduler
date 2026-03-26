@@ -26,3 +26,7 @@ func (r *ExecutorRepository) UpdateHeartbeat(ctx context.Context, executorCode s
 func (r *ExecutorRepository) ListOnline(ctx context.Context, limit int) ([]*ent.Executor, error) {
 	return r.inner.ListOnline(ctx, limit)
 }
+
+func (r *ExecutorRepository) CountOnline(ctx context.Context) (int, error) {
+	return r.inner.CountOnline(ctx)
+}

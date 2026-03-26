@@ -6,6 +6,7 @@ import (
 
 	"github.com/Humphrey-He/star-flow-scheduler/apps/scheduler/rpc/internal/state"
 	"github.com/Humphrey-He/star-flow-scheduler/apps/scheduler/rpc/internal/svc"
+	"github.com/Humphrey-He/star-flow-scheduler/pkg/metricsx"
 	"github.com/Humphrey-He/star-flow-scheduler/pkg/types"
 	schedulev1 "github.com/Humphrey-He/star-flow-scheduler/proto/pb/github.com/Humphrey-He/star-flow-scheduler/proto/schedulerv1"
 
@@ -27,13 +28,32 @@ func NewReportResultLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Repo
 }
 
 func (l *ReportResultLogic) ReportResult(in *schedulev1.ReportResultRequest) (*schedulev1.ReportResultResponse, error) {
+	metricsx.Inc("scheduler_report_result_total")
 	status := mapReportStatus(in.Status)
 	startAt := unixMilliPtr(in.StartTime)
 	finishAt := unixMilliPtr(in.FinishTime)
+	if startAt != nil && finishAt != nil && finishAt.After(*startAt) {
+		metricsx.ObserveDurationMs("scheduler_report_result_duration_ms", finishAt.Sub(*startAt))
+	}
 	_, err := l.svcCtx.InstanceSvc.ReportResult(l.ctx, in.InstanceNo, status, startAt, finishAt, strPtr(in.ResultSummary), strPtr(in.ErrorCode), strPtr(in.ErrorMessage))
 	if err != nil {
+		metricsx.Inc("scheduler_report_result_fail_total")
+		l.Logger.Errorw("scheduler report result failed",
+			logx.Field("instance_no", in.InstanceNo),
+			logx.Field("status", status),
+			logx.Field("error_message", err.Error()),
+		)
 		return nil, err
 	}
+	if status == state.StatusSuccess {
+		metricsx.Inc("scheduler_report_result_success_total")
+	} else {
+		metricsx.Inc("scheduler_report_result_fail_total")
+	}
+	l.Logger.Infow("scheduler report result",
+		logx.Field("instance_no", in.InstanceNo),
+		logx.Field("status", status),
+	)
 	if l.svcCtx.WorkflowRuntime != nil {
 		instance, err := l.svcCtx.InstanceRepo.GetByInstanceNo(l.ctx, in.InstanceNo)
 		if err == nil && instance.WorkflowID != nil {

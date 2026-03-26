@@ -9,6 +9,7 @@ import (
 
 	"github.com/Humphrey-He/star-flow-scheduler/apps/executor/rpc/internal/handler"
 	"github.com/Humphrey-He/star-flow-scheduler/apps/executor/rpc/internal/model"
+	"github.com/Humphrey-He/star-flow-scheduler/pkg/metricsx"
 	schedulev1 "github.com/Humphrey-He/star-flow-scheduler/proto/pb/github.com/Humphrey-He/star-flow-scheduler/proto/schedulerv1"
 
 	"github.com/zeromicro/go-zero/core/logx"
@@ -53,7 +54,13 @@ func (p *WorkerPool) worker(ctx context.Context, idx int) {
 			if task == nil {
 				continue
 			}
-			logger.Infof("worker=%d handle instance=%s handler=%s", idx, task.InstanceNo, task.HandlerName)
+			logger.Infow("executor task received",
+				logx.Field("worker", idx),
+				logx.Field("instance_no", task.InstanceNo),
+				logx.Field("job_code", task.JobCode),
+				logx.Field("handler_name", task.HandlerName),
+				logx.Field("shard_no", task.ShardNo),
+			)
 			atomic.AddInt64(&p.running, 1)
 			p.executeTask(ctx, task)
 			atomic.AddInt64(&p.running, -1)
@@ -63,6 +70,7 @@ func (p *WorkerPool) worker(ctx context.Context, idx int) {
 
 func (p *WorkerPool) executeTask(ctx context.Context, task *model.Task) {
 	start := time.Now()
+	metricsx.Inc("executor_task_started_total")
 	result := &model.TaskResult{
 		InstanceNo: task.InstanceNo,
 		ShardNo:    task.ShardNo,
@@ -76,6 +84,11 @@ func (p *WorkerPool) executeTask(ctx context.Context, task *model.Task) {
 		result.ErrorCode = "handler_not_found"
 		result.ErrorMessage = fmt.Sprintf("handler not registered: %s", task.HandlerName)
 		result.FinishTime = time.Now()
+		logx.WithContext(ctx).Errorw("executor handler not found",
+			logx.Field("instance_no", task.InstanceNo),
+			logx.Field("job_code", task.JobCode),
+			logx.Field("handler_name", task.HandlerName),
+		)
 		p.reporter.Report(result)
 		return
 	}
@@ -93,15 +106,32 @@ func (p *WorkerPool) executeTask(ctx context.Context, task *model.Task) {
 		result.Status = schedulev1.InstanceStatus_INSTANCE_STATUS_FAILED
 		result.ErrorCode = "execute_failed"
 		result.ErrorMessage = err.Error()
+		logx.WithContext(ctx).Errorw("executor task execute failed",
+			logx.Field("instance_no", task.InstanceNo),
+			logx.Field("job_code", task.JobCode),
+			logx.Field("handler_name", task.HandlerName),
+			logx.Field("error_message", err.Error()),
+		)
 	}
 
 	if errors.Is(execCtx.Err(), context.DeadlineExceeded) {
 		result.Status = schedulev1.InstanceStatus_INSTANCE_STATUS_FAILED
 		result.ErrorCode = "timeout"
 		result.ErrorMessage = "task timeout"
+		logx.WithContext(ctx).Errorw("executor task timeout",
+			logx.Field("instance_no", task.InstanceNo),
+			logx.Field("job_code", task.JobCode),
+			logx.Field("handler_name", task.HandlerName),
+		)
 	}
 
 	result.FinishTime = time.Now()
+	metricsx.ObserveDurationMs("executor_task_duration_ms", result.FinishTime.Sub(start))
+	if result.Status == schedulev1.InstanceStatus_INSTANCE_STATUS_SUCCESS {
+		metricsx.Inc("executor_task_success_total")
+	} else {
+		metricsx.Inc("executor_task_fail_total")
+	}
 	p.reporter.Report(result)
 }
 

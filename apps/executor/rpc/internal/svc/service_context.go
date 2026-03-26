@@ -85,6 +85,7 @@ func NewServiceContext(c config.Config) *ServiceContext {
 }
 
 func (s *ServiceContext) Start(ctx context.Context) {
+	logx.AddGlobalFields(logx.Field("executor_code", s.Config.Executor.ExecutorCode))
 	s.Runtime.Start(ctx)
 	s.Reporter.Start(ctx)
 

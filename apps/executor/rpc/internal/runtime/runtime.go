@@ -8,6 +8,7 @@ import (
 
 	"github.com/Humphrey-He/star-flow-scheduler/apps/executor/rpc/internal/handler"
 	"github.com/Humphrey-He/star-flow-scheduler/apps/executor/rpc/internal/model"
+	"github.com/Humphrey-He/star-flow-scheduler/pkg/metricsx"
 )
 
 type Runtime struct {
@@ -42,7 +43,11 @@ func (r *Runtime) Enqueue(task *model.Task) error {
 	if r.IsDraining() {
 		return errors.New("runtime draining")
 	}
-	return r.queue.Enqueue(task)
+	if err := r.queue.Enqueue(task); err != nil {
+		return err
+	}
+	metricsx.Inc("executor_task_received_total")
+	return nil
 }
 
 func (r *Runtime) Drain() {
