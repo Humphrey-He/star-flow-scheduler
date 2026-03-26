@@ -48,38 +48,39 @@ func (d *ReadyDispatcher) Start(ctx context.Context) {
 		instanceNo, err := d.queue.Pop(ctx, d.cfg.PopTimeout)
 		if err != nil {
 			if errors.Is(err, redisx.ErrNotFound) {
-				metricsx.Inc("dispatcher_pop_empty_total")
+				metricsx.Inc("scheduler_dispatch_pop_empty_total")
 				time.Sleep(d.cfg.IdleSleep)
 				continue
 			}
 			logx.WithContext(ctx).Errorf("ready dispatcher pop failed: %v", err)
-			metricsx.Inc("dispatcher_pop_error_total")
+			metricsx.Inc("scheduler_dispatch_pop_error_total")
 			time.Sleep(d.cfg.IdleSleep)
 			continue
 		}
-		metricsx.Inc("dispatcher_pop_total")
+		metricsx.Inc("scheduler_dispatch_pop_total")
 
 		instance, err := d.instances.GetByInstanceNo(ctx, instanceNo)
 		if err != nil {
 			logx.WithContext(ctx).Errorf("ready dispatcher load instance=%s failed: %v", instanceNo, err)
-			metricsx.Inc("dispatcher_load_error_total")
+			metricsx.Inc("scheduler_dispatch_load_error_total")
 			continue
 		}
 		if instance.Status != string(state.StatusPending) {
 			continue
 		}
 
+		metricsx.Inc("scheduler_dispatch_total")
 		if _, err := d.dispatcher.DispatchInstance(ctx, instanceNo); err != nil {
 			logx.WithContext(ctx).Errorf("ready dispatcher dispatch instance=%s failed: %v", instanceNo, err)
-			metricsx.Inc("dispatcher_dispatch_fail_total")
+			metricsx.Inc("scheduler_dispatch_fail_total")
 			if err := d.queue.Push(ctx, instanceNo); err != nil {
 				logx.WithContext(ctx).Errorf("ready dispatcher requeue instance=%s failed: %v", instanceNo, err)
-				metricsx.Inc("dispatcher_requeue_error_total")
+				metricsx.Inc("scheduler_dispatch_requeue_error_total")
 			}
 			time.Sleep(d.cfg.Requeue)
 			continue
 		}
-		metricsx.Inc("dispatcher_dispatch_success_total")
+		metricsx.Inc("scheduler_dispatch_success_total")
 	}
 }
 

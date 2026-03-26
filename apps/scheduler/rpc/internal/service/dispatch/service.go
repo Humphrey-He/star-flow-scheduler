@@ -169,15 +169,15 @@ func toExecutorNodes(ctx context.Context, execs []*ent.Executor, cache redisx.He
 		if cache != nil {
 			if hb, err := cache.Get(ctx, exec.ExecutorCode); err == nil {
 				currentLoad = int32(hb.CurrentLoad)
-				metricsx.Inc("route_cache_hit_total")
+				metricsx.Inc("scheduler_route_cache_hit_total")
 			} else if !errors.Is(err, redisx.ErrNotFound) {
 				// ignore cache errors to keep dispatch safe
-				metricsx.Inc("route_cache_error_total")
+				metricsx.Inc("scheduler_route_cache_error_total")
 			} else {
-				metricsx.Inc("route_cache_miss_total")
+				metricsx.Inc("scheduler_route_cache_miss_total")
 			}
 		} else {
-			metricsx.Inc("route_cache_disabled_total")
+			metricsx.Inc("scheduler_route_cache_disabled_total")
 		}
 		nodes = append(nodes, route.ExecutorNode{
 			ID:           int64(exec.ID),
