@@ -1,11 +1,12 @@
 module github.com/Humphrey-He/star-flow-scheduler
 
-go 1.20
+go 1.21
+
+toolchain go1.24.4
 
 require (
 	entgo.io/ent v0.13.1
 	github.com/go-sql-driver/mysql v1.8.1
-	github.com/mattn/go-sqlite3 v1.14.16
 	github.com/zeromicro/go-zero v1.7.0
 	google.golang.org/grpc v1.65.0
 	google.golang.org/protobuf v1.34.2
