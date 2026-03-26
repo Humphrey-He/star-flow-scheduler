@@ -21,6 +21,7 @@ type RuntimeService struct {
 	workflowInstances *pkgrepo.WorkflowInstanceRepository
 	jobs              *pkgrepo.JobRepository
 	dispatcher        *dispatch.Service
+	resolver          DependencyResolver
 }
 
 func NewRuntimeService(
@@ -40,6 +41,7 @@ func NewRuntimeService(
 		workflowInstances: workflowInstances,
 		jobs:              jobs,
 		dispatcher:        dispatcher,
+		resolver:          NewResolver(),
 	}
 }
 
@@ -130,6 +132,73 @@ func (s *RuntimeService) TriggerWorkflow(ctx context.Context, workflowCode strin
 	return instance, nil
 }
 
+func (s *RuntimeService) OnNodeJobFinished(ctx context.Context, workflowInstanceID int64, nodeCode string, status types.WorkflowNodeStatus) error {
+	nodeInst, err := s.nodeInstances.GetByWorkflowInstanceIDAndNodeCode(ctx, workflowInstanceID, nodeCode)
+	if err != nil {
+		return err
+	}
+	if nodeInst.Status != string(types.WorkflowNodeStatusRunning) {
+		return nil
+	}
+
+	_, err = s.nodeInstances.UpdateStatusIf(ctx, workflowInstanceID, nodeCode, string(types.WorkflowNodeStatusRunning), string(status), timePtr(time.Now()))
+	if err != nil {
+		return err
+	}
+
+	nodes, err := s.nodes.ListByWorkflowID(ctx, nodeInst.WorkflowID)
+	if err != nil {
+		return err
+	}
+	nodeMap := buildNodeMap(nodes)
+	current, ok := nodeMap[nodeCode]
+	if !ok {
+		return nil
+	}
+	downstreams := downstreamNodes(nodeMap, current.NodeCode)
+	if len(downstreams) == 0 {
+		return nil
+	}
+
+	nodeInstances, err := s.nodeInstances.ListByWorkflowInstanceID(ctx, workflowInstanceID)
+	if err != nil {
+		return err
+	}
+	nodeInstanceMap := buildNodeInstanceMap(nodeInstances)
+
+	for _, downstream := range downstreams {
+		downstreamInst := nodeInstanceMap[downstream.NodeCode]
+		if downstreamInst == nil {
+			continue
+		}
+		if downstreamInst.JobInstanceID != nil || downstreamInst.Status != string(types.WorkflowNodeStatusPending) {
+			continue
+		}
+		upstreamStatuses := collectUpstreamStatuses(nodeMap, nodeInstanceMap, downstream)
+		if len(upstreamStatuses) == 0 {
+			continue
+		}
+		ready, err := s.resolver.CanTrigger(triggerConditionOf(downstream), upstreamStatuses)
+		if err != nil || !ready {
+			continue
+		}
+
+		updated, err := s.nodeInstances.UpdateStatusIf(ctx, workflowInstanceID, downstream.NodeCode, string(types.WorkflowNodeStatusPending), string(types.WorkflowNodeStatusReady), nil)
+		if err != nil || updated == 0 {
+			continue
+		}
+
+		jobInstance, err := s.dispatcher.CreateInstance(ctx, downstream.JobCode, "workflow", nil)
+		if err != nil {
+			continue
+		}
+		_, _ = s.nodeInstances.UpdateJobInstanceID(ctx, workflowInstanceID, downstream.NodeCode, int64(jobInstance.ID))
+		_, _ = s.nodeInstances.UpdateStatusIf(ctx, workflowInstanceID, downstream.NodeCode, string(types.WorkflowNodeStatusReady), string(types.WorkflowNodeStatusRunning), timePtr(time.Now()))
+	}
+
+	return nil
+}
+
 func newWorkflowInstanceNo() string {
 	return fmt.Sprintf("WF-%d", time.Now().UnixNano())
 }
@@ -149,6 +218,72 @@ func isRootNode(node *ent.WorkflowNode) bool {
 		return true
 	}
 	return false
+}
+
+func buildNodeMap(nodes []*ent.WorkflowNode) map[string]*ent.WorkflowNode {
+	out := make(map[string]*ent.WorkflowNode, len(nodes))
+	for _, node := range nodes {
+		out[node.NodeCode] = node
+	}
+	return out
+}
+
+func buildNodeInstanceMap(nodes []*ent.WorkflowNodeInstance) map[string]*ent.WorkflowNodeInstance {
+	out := make(map[string]*ent.WorkflowNodeInstance, len(nodes))
+	for _, node := range nodes {
+		out[node.NodeCode] = node
+	}
+	return out
+}
+
+func downstreamNodes(nodes map[string]*ent.WorkflowNode, nodeCode string) []*ent.WorkflowNode {
+	out := make([]*ent.WorkflowNode, 0)
+	for _, node := range nodes {
+		if isUpstreamOf(node, nodeCode) {
+			out = append(out, node)
+		}
+	}
+	return out
+}
+
+func isUpstreamOf(node *ent.WorkflowNode, upstream string) bool {
+	if node.UpstreamCodes == nil {
+		return false
+	}
+	parts := strings.Split(*node.UpstreamCodes, ",")
+	for _, part := range parts {
+		if strings.TrimSpace(part) == upstream {
+			return true
+		}
+	}
+	return false
+}
+
+func collectUpstreamStatuses(nodes map[string]*ent.WorkflowNode, nodeInstances map[string]*ent.WorkflowNodeInstance, node *ent.WorkflowNode) []types.WorkflowNodeStatus {
+	if node.UpstreamCodes == nil || strings.TrimSpace(*node.UpstreamCodes) == "" {
+		return []types.WorkflowNodeStatus{}
+	}
+	parts := strings.Split(*node.UpstreamCodes, ",")
+	out := make([]types.WorkflowNodeStatus, 0, len(parts))
+	for _, part := range parts {
+		code := strings.TrimSpace(part)
+		if code == "" {
+			continue
+		}
+		inst := nodeInstances[code]
+		if inst == nil {
+			return []types.WorkflowNodeStatus{}
+		}
+		out = append(out, types.WorkflowNodeStatus(inst.Status))
+	}
+	return out
+}
+
+func triggerConditionOf(node *ent.WorkflowNode) string {
+	if node.TriggerCondition == "" {
+		return "all_success"
+	}
+	return node.TriggerCondition
 }
 
 func timePtr(t time.Time) *time.Time {
