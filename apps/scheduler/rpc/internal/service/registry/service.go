@@ -6,6 +6,7 @@ import (
 	"time"
 
 	rpcrepo "github.com/Humphrey-He/star-flow-scheduler/apps/scheduler/rpc/internal/repo"
+	"github.com/Humphrey-He/star-flow-scheduler/pkg/metricsx"
 	pkgrepo "github.com/Humphrey-He/star-flow-scheduler/pkg/repo"
 	"github.com/Humphrey-He/star-flow-scheduler/pkg/redisx"
 )
@@ -49,6 +50,7 @@ func (s *Service) Register(ctx context.Context, req RegisterRequest) (int64, err
 		return 0, err
 	}
 	s.setHeartbeatCache(ctx, req.ExecutorCode, req.CurrentLoad, 0)
+	s.updateOnlineMetrics(ctx)
 
 	return int64(exec.ID), nil
 }
@@ -58,6 +60,7 @@ func (s *Service) Heartbeat(ctx context.Context, executorCode string, currentLoa
 		return err
 	}
 	s.setHeartbeatCache(ctx, executorCode, currentLoad, runningJobs)
+	s.updateOnlineMetrics(ctx)
 	return nil
 }
 
@@ -91,4 +94,15 @@ func (s *Service) setHeartbeatCache(ctx context.Context, executorCode string, cu
 		RunningJobs:  int64(runningJobs),
 		UpdatedAtMs:  time.Now().UnixMilli(),
 	}, s.heartbeatTTL)
+}
+
+func (s *Service) updateOnlineMetrics(ctx context.Context) {
+	if s.executors == nil {
+		return
+	}
+	count, err := s.executors.CountOnline(ctx)
+	if err != nil {
+		return
+	}
+	metricsx.Set("scheduler_executor_online_total", int64(count))
 }

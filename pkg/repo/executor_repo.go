@@ -107,3 +107,9 @@ func (r *ExecutorRepository) ListOnline(ctx context.Context, limit int) ([]*ent.
 		Limit(limit).
 		All(ctx)
 }
+
+func (r *ExecutorRepository) CountOnline(ctx context.Context) (int, error) {
+	return r.client.Executor.Query().
+		Where(executor.StatusEQ("online")).
+		Count(ctx)
+}
