@@ -11,6 +11,8 @@ import (
 	"github.com/Humphrey-He/star-flow-scheduler/pkg/db"
 	"github.com/Humphrey-He/star-flow-scheduler/pkg/ent"
 	pkgrepo "github.com/Humphrey-He/star-flow-scheduler/pkg/repo"
+	"github.com/Humphrey-He/star-flow-scheduler/pkg/redisx"
+	"github.com/redis/go-redis/v9"
 )
 
 type ServiceContext struct {
@@ -23,6 +25,7 @@ type ServiceContext struct {
 	RegistrySvc  *registry.Service
 	DispatchSvc  *dispatch.Service
 	InstanceSvc  *instance.Service
+	Redis        *redis.Client
 }
 
 func NewServiceContext(c config.Config) *ServiceContext {
@@ -34,6 +37,10 @@ func NewServiceContext(c config.Config) *ServiceContext {
 	executorRepo := repo.NewExecutorRepository(pkgrepo.NewExecutorRepository(database.Client))
 	instanceRepo := repo.NewJobInstanceRepository(database.Client)
 	jobRepo := repo.NewJobRepository(pkgrepo.NewJobRepository(database.Client))
+	redisClient, err := redisx.NewRedis(c.Redis)
+	if err != nil {
+		panic(fmt.Sprintf("open redis failed: %v", err))
+	}
 
 	return &ServiceContext{
 		Config:       c,
@@ -45,5 +52,6 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		RegistrySvc:  registry.NewService(executorRepo),
 		DispatchSvc:  dispatch.NewService(jobRepo, instanceRepo, executorRepo, nil),
 		InstanceSvc:  instance.NewService(instanceRepo),
+		Redis:        redisClient,
 	}
 }

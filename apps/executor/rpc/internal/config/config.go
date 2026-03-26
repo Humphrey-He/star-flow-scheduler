@@ -1,6 +1,9 @@
 package config
 
-import "github.com/zeromicro/go-zero/zrpc"
+import (
+	"github.com/Humphrey-He/star-flow-scheduler/pkg/redisx"
+	"github.com/zeromicro/go-zero/zrpc"
+)
 
 type Config struct {
 	zrpc.RpcServerConf
@@ -9,6 +12,7 @@ type Config struct {
 	Runtime      RuntimeConf
 	Registry     RegistryConf
 	Reporter     ReporterConf
+	Redis        redisx.Config `json:",optional"`
 }
 
 type ExecutorConf struct {

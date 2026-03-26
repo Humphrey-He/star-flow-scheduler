@@ -16,7 +16,9 @@ import (
 	registryservice "github.com/Humphrey-He/star-flow-scheduler/apps/executor/rpc/internal/service/registry"
 	dispatchclient "github.com/Humphrey-He/star-flow-scheduler/apps/scheduler/rpc/client/dispatchservice"
 	registryclient "github.com/Humphrey-He/star-flow-scheduler/apps/scheduler/rpc/client/executorregistryservice"
+	"github.com/Humphrey-He/star-flow-scheduler/pkg/redisx"
 
+	"github.com/redis/go-redis/v9"
 	"github.com/zeromicro/go-zero/core/logx"
 	"github.com/zeromicro/go-zero/zrpc"
 )
@@ -31,12 +33,18 @@ type ServiceContext struct {
 	Reporter        *reporter.Reporter
 	RegistrySvc     *registryservice.Service
 	DispatchSvc     *dispatchservice.Service
+	Redis           *redis.Client
 }
 
 func NewServiceContext(c config.Config) *ServiceContext {
 	schedulerClient := zrpc.MustNewClient(c.SchedulerRpc)
 	dispatchSvcClient := dispatchclient.NewDispatchService(schedulerClient)
 	registrySvcClient := registryclient.NewExecutorRegistryService(schedulerClient)
+
+	redisClient, err := redisx.NewRedis(c.Redis)
+	if err != nil {
+		panic(fmt.Sprintf("open redis failed: %v", err))
+	}
 
 	handlerRegistry := handler.NewRegistry()
 	_ = handlerRegistry.Register(&builtin.NoopHandler{})
@@ -72,6 +80,7 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		Reporter:        reporterSvc,
 		RegistrySvc:     regSvc,
 		DispatchSvc:     dispatchSvc,
+		Redis:           redisClient,
 	}
 }
 

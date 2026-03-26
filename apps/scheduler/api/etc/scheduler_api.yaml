@@ -2,3 +2,11 @@ Name: scheduler-api
 Host: 0.0.0.0
 Port: 8888
 PostgresDSN: "postgres://postgres:password@127.0.0.1:5432/starflow?sslmode=disable"
+Redis:
+  Addr: 127.0.0.1:6379
+  Password: ""
+  DB: 0
+  PoolSize: 10
+  DialTimeoutMs: 1000
+  ReadTimeoutMs: 1000
+  WriteTimeoutMs: 1000
