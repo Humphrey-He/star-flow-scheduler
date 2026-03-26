@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 
@@ -26,6 +27,8 @@ func main() {
 	var c config.Config
 	conf.MustLoad(*configFile, &c)
 	ctx := svc.NewServiceContext(c)
+	ctx.Start(context.Background())
+	defer ctx.Stop()
 
 	s := zrpc.MustNewServer(c.RpcServerConf, func(grpcServer *grpc.Server) {
 		schedulev1.RegisterExecutorRegistryServiceServer(grpcServer, executorregistryserviceServer.NewExecutorRegistryServiceServer(ctx))

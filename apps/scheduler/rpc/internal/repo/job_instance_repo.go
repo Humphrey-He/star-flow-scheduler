@@ -79,3 +79,26 @@ func (r *JobInstanceRepository) UpdateDispatchInfoIfStatus(ctx context.Context, 
 		SetDispatchTime(dispatchTime).
 		Save(ctx)
 }
+
+func (r *JobInstanceRepository) ListDueInstances(ctx context.Context, now time.Time, limit int) ([]string, error) {
+	if limit <= 0 {
+		return []string{}, nil
+	}
+	rows, err := r.client.JobInstance.Query().
+		Where(
+			jobinstance.StatusEQ("pending"),
+			jobinstance.ScheduledTimeLTE(now),
+		).
+		Order(jobinstance.ByScheduledTime()).
+		Limit(limit).
+		Select(jobinstance.FieldInstanceNo).
+		All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]string, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, row.InstanceNo)
+	}
+	return out, nil
+}

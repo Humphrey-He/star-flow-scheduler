@@ -2,6 +2,7 @@ package dispatch
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math/rand"
 	"strings"
@@ -11,8 +12,11 @@ import (
 	"github.com/Humphrey-He/star-flow-scheduler/apps/scheduler/rpc/internal/route"
 	"github.com/Humphrey-He/star-flow-scheduler/apps/scheduler/rpc/internal/state"
 	"github.com/Humphrey-He/star-flow-scheduler/pkg/ent"
+	"github.com/Humphrey-He/star-flow-scheduler/pkg/metricsx"
 	pkgrepo "github.com/Humphrey-He/star-flow-scheduler/pkg/repo"
+	"github.com/Humphrey-He/star-flow-scheduler/pkg/redisx"
 	schedulev1 "github.com/Humphrey-He/star-flow-scheduler/proto/pb/github.com/Humphrey-He/star-flow-scheduler/proto/schedulerv1"
+	"github.com/robfig/cron/v3"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -23,9 +27,11 @@ type Service struct {
 	instances *rpcrepo.JobInstanceRepository
 	executors *rpcrepo.ExecutorRepository
 	strategy  route.Strategy
+	cache     redisx.HeartbeatCache
+	delayQueue redisx.DelayQueue
 }
 
-func NewService(jobs *rpcrepo.JobRepository, instances *rpcrepo.JobInstanceRepository, executors *rpcrepo.ExecutorRepository, strategy route.Strategy) *Service {
+func NewService(jobs *rpcrepo.JobRepository, instances *rpcrepo.JobInstanceRepository, executors *rpcrepo.ExecutorRepository, strategy route.Strategy, cache redisx.HeartbeatCache, delayQueue redisx.DelayQueue) *Service {
 	if strategy == nil {
 		strategy = route.NewStrategy("least_load")
 	}
@@ -34,6 +40,8 @@ func NewService(jobs *rpcrepo.JobRepository, instances *rpcrepo.JobInstanceRepos
 		instances: instances,
 		executors: executors,
 		strategy:  strategy,
+		cache:     cache,
+		delayQueue: delayQueue,
 	}
 }
 
@@ -44,19 +52,35 @@ func (s *Service) CreateInstance(ctx context.Context, jobCode string, triggerTyp
 	}
 
 	now := time.Now()
+	scheduledAt, shouldDelay, err := nextScheduleTime(job, now)
+	if err != nil {
+		return nil, err
+	}
 	instanceNo := newInstanceNo()
 	req := pkgrepo.JobInstanceCreate{
 		InstanceNo:    instanceNo,
 		JobID:         int64(job.ID),
 		TriggerType:   triggerType,
 		TriggerTime:   now,
-		ScheduledTime: now,
+		ScheduledTime: scheduledAt,
 		Status:        string(state.StatusPending),
 		Payload:       payload,
 		ShardTotal:    job.ShardTotal,
 	}
 
-	return s.instances.Create(ctx, req)
+	instance, err := s.instances.Create(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+	if shouldDelay {
+		if s.delayQueue == nil {
+			return nil, fmt.Errorf("delay queue not configured")
+		}
+		if err := s.delayQueue.Add(ctx, instanceNo, scheduledAt); err != nil {
+			return nil, err
+		}
+	}
+	return instance, nil
 }
 
 func (s *Service) DispatchInstance(ctx context.Context, instanceNo string) (*ent.Executor, error) {
@@ -78,7 +102,7 @@ func (s *Service) DispatchInstance(ctx context.Context, instanceNo string) (*ent
 		return nil, fmt.Errorf("no online executor")
 	}
 
-	nodes := toExecutorNodes(execs)
+	nodes := toExecutorNodes(ctx, execs, s.cache)
 	jobSnap := route.JobSnapshot{
 		JobCode:     job.JobCode,
 		RouteKey:    ptrString(instance.Payload),
@@ -126,7 +150,7 @@ func (s *Service) dispatchToExecutor(ctx context.Context, exec *ent.Executor, in
 		ShardNo:     "",
 		TimeoutMs:   int32(job.TimeoutMs),
 		Payload:     payload,
-		TraceId:     "",
+		TraceId:     instance.InstanceNo,
 	})
 	return err
 }
@@ -138,14 +162,28 @@ func ptrString(v *string) string {
 	return *v
 }
 
-func toExecutorNodes(execs []*ent.Executor) []route.ExecutorNode {
+func toExecutorNodes(ctx context.Context, execs []*ent.Executor, cache redisx.HeartbeatCache) []route.ExecutorNode {
 	nodes := make([]route.ExecutorNode, 0, len(execs))
 	for _, exec := range execs {
+		currentLoad := exec.CurrentLoad
+		if cache != nil {
+			if hb, err := cache.Get(ctx, exec.ExecutorCode); err == nil {
+				currentLoad = int32(hb.CurrentLoad)
+				metricsx.Inc("route_cache_hit_total")
+			} else if !errors.Is(err, redisx.ErrNotFound) {
+				// ignore cache errors to keep dispatch safe
+				metricsx.Inc("route_cache_error_total")
+			} else {
+				metricsx.Inc("route_cache_miss_total")
+			}
+		} else {
+			metricsx.Inc("route_cache_disabled_total")
+		}
 		nodes = append(nodes, route.ExecutorNode{
 			ID:           int64(exec.ID),
 			ExecutorCode: exec.ExecutorCode,
 			Tags:         splitTags(ptrString(exec.Tags)),
-			CurrentLoad:  exec.CurrentLoad,
+			CurrentLoad:  currentLoad,
 		})
 	}
 	return nodes
@@ -180,4 +218,30 @@ func findExecutor(execs []*ent.Executor, selected *route.ExecutorNode) *ent.Exec
 
 func newInstanceNo() string {
 	return fmt.Sprintf("JI-%d-%d", time.Now().UnixNano(), rand.Intn(1000))
+}
+
+func nextScheduleTime(job *ent.JobDefinition, now time.Time) (time.Time, bool, error) {
+	jobType := strings.ToLower(job.JobType)
+	switch jobType {
+	case "delay":
+		if job.DelayMs <= 0 {
+			return now, false, nil
+		}
+		return now.Add(time.Duration(job.DelayMs) * time.Millisecond), true, nil
+	case "cron":
+		if job.ScheduleExpr == nil || strings.TrimSpace(*job.ScheduleExpr) == "" {
+			return now, false, nil
+		}
+		schedule, err := cron.ParseStandard(*job.ScheduleExpr)
+		if err != nil {
+			return now, false, err
+		}
+		next := schedule.Next(now)
+		if next.IsZero() {
+			return now, false, nil
+		}
+		return next, true, nil
+	default:
+		return now, false, nil
+	}
 }

@@ -7,14 +7,21 @@ import (
 
 	rpcrepo "github.com/Humphrey-He/star-flow-scheduler/apps/scheduler/rpc/internal/repo"
 	pkgrepo "github.com/Humphrey-He/star-flow-scheduler/pkg/repo"
+	"github.com/Humphrey-He/star-flow-scheduler/pkg/redisx"
 )
 
 type Service struct {
-	executors *rpcrepo.ExecutorRepository
+	executors      *rpcrepo.ExecutorRepository
+	heartbeatCache redisx.HeartbeatCache
+	heartbeatTTL   time.Duration
 }
 
-func NewService(executors *rpcrepo.ExecutorRepository) *Service {
-	return &Service{executors: executors}
+func NewService(executors *rpcrepo.ExecutorRepository, heartbeatCache redisx.HeartbeatCache, heartbeatTTL time.Duration) *Service {
+	return &Service{
+		executors:      executors,
+		heartbeatCache: heartbeatCache,
+		heartbeatTTL:   heartbeatTTL,
+	}
 }
 
 func (s *Service) Register(ctx context.Context, req RegisterRequest) (int64, error) {
@@ -41,12 +48,17 @@ func (s *Service) Register(ctx context.Context, req RegisterRequest) (int64, err
 	if err != nil {
 		return 0, err
 	}
+	s.setHeartbeatCache(ctx, req.ExecutorCode, req.CurrentLoad, 0)
 
 	return int64(exec.ID), nil
 }
 
-func (s *Service) Heartbeat(ctx context.Context, executorCode string, currentLoad int) error {
-	return s.executors.UpdateHeartbeat(ctx, executorCode, currentLoad)
+func (s *Service) Heartbeat(ctx context.Context, executorCode string, currentLoad int, runningJobs int) error {
+	if err := s.executors.UpdateHeartbeat(ctx, executorCode, currentLoad); err != nil {
+		return err
+	}
+	s.setHeartbeatCache(ctx, executorCode, currentLoad, runningJobs)
+	return nil
 }
 
 type RegisterRequest struct {
@@ -67,4 +79,16 @@ func strPtr(s string) *string {
 		return nil
 	}
 	return &s
+}
+
+func (s *Service) setHeartbeatCache(ctx context.Context, executorCode string, currentLoad int, runningJobs int) {
+	if s.heartbeatCache == nil || s.heartbeatTTL <= 0 {
+		return
+	}
+	_ = s.heartbeatCache.Set(ctx, executorCode, redisx.ExecutorHeartbeat{
+		ExecutorCode: executorCode,
+		CurrentLoad:  int64(currentLoad),
+		RunningJobs:  int64(runningJobs),
+		UpdatedAtMs:  time.Now().UnixMilli(),
+	}, s.heartbeatTTL)
 }

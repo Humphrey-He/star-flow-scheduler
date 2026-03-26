@@ -1,6 +1,3 @@
-//go:build entgen
-// +build entgen
-
 package repo
 
 import (
@@ -47,4 +44,14 @@ func (r *WorkflowInstanceRepository) ListByWorkflowCode(ctx context.Context, wor
 		Order(ent.Desc(workflowinstance.FieldID)).
 		Limit(limit).
 		All(ctx)
+}
+
+func (r *WorkflowInstanceRepository) UpdateStatusIf(ctx context.Context, workflowInstanceID int64, fromStatus string, toStatus string) (int, error) {
+	return r.client.WorkflowInstance.Update().
+		Where(
+			workflowinstance.IDEQ(workflowInstanceID),
+			workflowinstance.StatusEQ(fromStatus),
+		).
+		SetStatus(toStatus).
+		Save(ctx)
 }
