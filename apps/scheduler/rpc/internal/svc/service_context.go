@@ -62,7 +62,7 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		heartbeatCache = redisx.NewHeartbeatCache(redisClient)
 	}
 
-	dispatchSvc := dispatch.NewService(jobRepo, instanceRepo, executorRepo, nil)
+	dispatchSvc := dispatch.NewService(jobRepo, instanceRepo, executorRepo, nil, heartbeatCache)
 
 	return &ServiceContext{
 		Config:       c,

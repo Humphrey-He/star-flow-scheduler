@@ -2,6 +2,7 @@ package dispatch
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math/rand"
 	"strings"
@@ -12,6 +13,7 @@ import (
 	"github.com/Humphrey-He/star-flow-scheduler/apps/scheduler/rpc/internal/state"
 	"github.com/Humphrey-He/star-flow-scheduler/pkg/ent"
 	pkgrepo "github.com/Humphrey-He/star-flow-scheduler/pkg/repo"
+	"github.com/Humphrey-He/star-flow-scheduler/pkg/redisx"
 	schedulev1 "github.com/Humphrey-He/star-flow-scheduler/proto/pb/github.com/Humphrey-He/star-flow-scheduler/proto/schedulerv1"
 
 	"google.golang.org/grpc"
@@ -23,9 +25,10 @@ type Service struct {
 	instances *rpcrepo.JobInstanceRepository
 	executors *rpcrepo.ExecutorRepository
 	strategy  route.Strategy
+	cache     redisx.HeartbeatCache
 }
 
-func NewService(jobs *rpcrepo.JobRepository, instances *rpcrepo.JobInstanceRepository, executors *rpcrepo.ExecutorRepository, strategy route.Strategy) *Service {
+func NewService(jobs *rpcrepo.JobRepository, instances *rpcrepo.JobInstanceRepository, executors *rpcrepo.ExecutorRepository, strategy route.Strategy, cache redisx.HeartbeatCache) *Service {
 	if strategy == nil {
 		strategy = route.NewStrategy("least_load")
 	}
@@ -34,6 +37,7 @@ func NewService(jobs *rpcrepo.JobRepository, instances *rpcrepo.JobInstanceRepos
 		instances: instances,
 		executors: executors,
 		strategy:  strategy,
+		cache:     cache,
 	}
 }
 
@@ -78,7 +82,7 @@ func (s *Service) DispatchInstance(ctx context.Context, instanceNo string) (*ent
 		return nil, fmt.Errorf("no online executor")
 	}
 
-	nodes := toExecutorNodes(execs)
+	nodes := toExecutorNodes(ctx, execs, s.cache)
 	jobSnap := route.JobSnapshot{
 		JobCode:     job.JobCode,
 		RouteKey:    ptrString(instance.Payload),
@@ -138,14 +142,22 @@ func ptrString(v *string) string {
 	return *v
 }
 
-func toExecutorNodes(execs []*ent.Executor) []route.ExecutorNode {
+func toExecutorNodes(ctx context.Context, execs []*ent.Executor, cache redisx.HeartbeatCache) []route.ExecutorNode {
 	nodes := make([]route.ExecutorNode, 0, len(execs))
 	for _, exec := range execs {
+		currentLoad := exec.CurrentLoad
+		if cache != nil {
+			if hb, err := cache.Get(ctx, exec.ExecutorCode); err == nil {
+				currentLoad = int32(hb.CurrentLoad)
+			} else if !errors.Is(err, redisx.ErrNotFound) {
+				// ignore cache errors to keep dispatch safe
+			}
+		}
 		nodes = append(nodes, route.ExecutorNode{
 			ID:           int64(exec.ID),
 			ExecutorCode: exec.ExecutorCode,
 			Tags:         splitTags(ptrString(exec.Tags)),
-			CurrentLoad:  exec.CurrentLoad,
+			CurrentLoad:  currentLoad,
 		})
 	}
 	return nodes
