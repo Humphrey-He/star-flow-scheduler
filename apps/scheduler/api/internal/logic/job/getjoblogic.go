@@ -1,8 +1,11 @@
-package scheduler
+package job
 
 import (
 	"context"
 
+	"github.com/Humphrey-He/star-flow-scheduler/apps/scheduler/api/internal/assembler"
+	"github.com/Humphrey-He/star-flow-scheduler/apps/scheduler/api/internal/errx"
+	"github.com/Humphrey-He/star-flow-scheduler/apps/scheduler/api/internal/service"
 	"github.com/Humphrey-He/star-flow-scheduler/apps/scheduler/api/internal/svc"
 	"github.com/Humphrey-He/star-flow-scheduler/apps/scheduler/api/internal/types"
 	"github.com/Humphrey-He/star-flow-scheduler/pkg/ent"
@@ -14,6 +17,7 @@ type GetJobLogic struct {
 	logx.Logger
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
+	jobSvc *service.JobService
 }
 
 func NewGetJobLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetJobLogic {
@@ -21,16 +25,20 @@ func NewGetJobLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetJobLogi
 		Logger: logx.WithContext(ctx),
 		ctx:    ctx,
 		svcCtx: svcCtx,
+		jobSvc: service.NewJobService(svcCtx.Jobs),
 	}
 }
 
 func (l *GetJobLogic) GetJob(req *types.GetJobRequest) (resp *types.GetJobResponse, err error) {
-	job, err := l.svcCtx.Jobs.GetByCode(l.ctx, req.JobCode)
+	job, err := l.jobSvc.GetByCode(l.ctx, req.JobCode)
 	if err != nil {
+		if ent.IsNotFound(err) {
+			return nil, errx.NotFound("job not found")
+		}
 		return nil, err
 	}
 
 	return &types.GetJobResponse{
-		Job: mapJobDefinition(job),
+		Job: assembler.MapJobDefinition(job),
 	}, nil
 }
