@@ -2,6 +2,7 @@ package dispatchservicelogic
 
 import (
 	"context"
+	"time"
 
 	"github.com/Humphrey-He/star-flow-scheduler/apps/scheduler/rpc/internal/state"
 	"github.com/Humphrey-He/star-flow-scheduler/apps/scheduler/rpc/internal/svc"
@@ -26,7 +27,9 @@ func NewReportResultLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Repo
 
 func (l *ReportResultLogic) ReportResult(in *schedulerv1_schedulev1.ReportResultRequest) (*schedulerv1_schedulev1.ReportResultResponse, error) {
 	status := mapReportStatus(in.Status)
-	_, err := l.svcCtx.InstanceSvc.ReportResult(l.ctx, in.InstanceNo, status, strPtr(in.ResultSummary), strPtr(in.ErrorCode), strPtr(in.ErrorMessage))
+	startAt := unixMilliPtr(in.StartTime)
+	finishAt := unixMilliPtr(in.FinishTime)
+	_, err := l.svcCtx.InstanceSvc.ReportResult(l.ctx, in.InstanceNo, status, startAt, finishAt, strPtr(in.ResultSummary), strPtr(in.ErrorCode), strPtr(in.ErrorMessage))
 	if err != nil {
 		return nil, err
 	}
@@ -54,4 +57,12 @@ func strPtr(s string) *string {
 		return nil
 	}
 	return &s
+}
+
+func unixMilliPtr(ms int64) *time.Time {
+	if ms <= 0 {
+		return nil
+	}
+	t := time.UnixMilli(ms)
+	return &t
 }

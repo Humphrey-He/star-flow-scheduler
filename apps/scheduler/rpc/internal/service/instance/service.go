@@ -3,6 +3,7 @@ package instance
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/Humphrey-He/star-flow-scheduler/apps/scheduler/rpc/internal/state"
 )
@@ -14,7 +15,7 @@ type Service struct {
 type instanceRepo interface {
 	GetStatusByInstanceNo(ctx context.Context, instanceNo string) (string, error)
 	UpdateStatusIf(ctx context.Context, instanceNo string, fromStatus string, toStatus string) (int, error)
-	UpdateResultIfStatus(ctx context.Context, instanceNo string, fromStatus string, toStatus string, resultSummary *string, errorCode *string, errorMessage *string) (int, error)
+	UpdateResultIfStatus(ctx context.Context, instanceNo string, fromStatus string, toStatus string, startTime *time.Time, finishTime *time.Time, resultSummary *string, errorCode *string, errorMessage *string) (int, error)
 }
 
 func NewService(instances instanceRepo) *Service {
@@ -34,7 +35,7 @@ func (s *Service) Transition(ctx context.Context, instanceNo string, from state.
 	return rows > 0, nil
 }
 
-func (s *Service) ReportResult(ctx context.Context, instanceNo string, status state.InstanceStatus, resultSummary *string, errorCode *string, errorMessage *string) (int, error) {
+func (s *Service) ReportResult(ctx context.Context, instanceNo string, status state.InstanceStatus, startTime *time.Time, finishTime *time.Time, resultSummary *string, errorCode *string, errorMessage *string) (int, error) {
 	currentStatus, err := s.instances.GetStatusByInstanceNo(ctx, instanceNo)
 	if err != nil {
 		return 0, err
@@ -51,7 +52,7 @@ func (s *Service) ReportResult(ctx context.Context, instanceNo string, status st
 		return 0, err
 	}
 
-	rows, err := s.instances.UpdateResultIfStatus(ctx, instanceNo, string(from), string(to), resultSummary, errorCode, errorMessage)
+	rows, err := s.instances.UpdateResultIfStatus(ctx, instanceNo, string(from), string(to), startTime, finishTime, resultSummary, errorCode, errorMessage)
 	if err != nil {
 		return 0, err
 	}

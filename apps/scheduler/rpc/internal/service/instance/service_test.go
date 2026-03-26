@@ -3,6 +3,7 @@ package instance
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/Humphrey-He/star-flow-scheduler/apps/scheduler/rpc/internal/state"
 )
@@ -29,7 +30,7 @@ func (f *fakeRepo) UpdateStatusIf(ctx context.Context, instanceNo string, fromSt
 	return 1, nil
 }
 
-func (f *fakeRepo) UpdateResultIfStatus(ctx context.Context, instanceNo string, fromStatus string, toStatus string, resultSummary *string, errorCode *string, errorMessage *string) (int, error) {
+func (f *fakeRepo) UpdateResultIfStatus(ctx context.Context, instanceNo string, fromStatus string, toStatus string, startTime *time.Time, finishTime *time.Time, resultSummary *string, errorCode *string, errorMessage *string) (int, error) {
 	if f.status != fromStatus {
 		return 0, nil
 	}
@@ -42,7 +43,7 @@ func TestReportResultIdempotent(t *testing.T) {
 	repo := &fakeRepo{status: string(state.StatusSuccess)}
 	svc := NewService(repo)
 
-	rows, err := svc.ReportResult(context.Background(), "inst-1", state.StatusSuccess, nil, nil, nil)
+	rows, err := svc.ReportResult(context.Background(), "inst-1", state.StatusSuccess, nil, nil, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("unexpected err: %v", err)
 	}
@@ -55,7 +56,7 @@ func TestReportResultInvalidTransition(t *testing.T) {
 	repo := &fakeRepo{status: string(state.StatusSuccess)}
 	svc := NewService(repo)
 
-	_, err := svc.ReportResult(context.Background(), "inst-1", state.StatusFailed, nil, nil, nil)
+	_, err := svc.ReportResult(context.Background(), "inst-1", state.StatusFailed, nil, nil, nil, nil, nil)
 	if err == nil {
 		t.Fatalf("expected error")
 	}
@@ -66,7 +67,7 @@ func TestReportResultConflict(t *testing.T) {
 	svc := NewService(repo)
 
 	repo.status = string(state.StatusDispatched)
-	_, err := svc.ReportResult(context.Background(), "inst-1", state.StatusSuccess, nil, nil, nil)
+	_, err := svc.ReportResult(context.Background(), "inst-1", state.StatusSuccess, nil, nil, nil, nil, nil)
 	if err == nil {
 		t.Fatalf("expected conflict error")
 	}
