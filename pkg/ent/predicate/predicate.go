@@ -6,11 +6,32 @@ import (
 	"entgo.io/ent/dialect/sql"
 )
 
+// DeadLetter is the predicate function for deadletter builders.
+type DeadLetter func(*sql.Selector)
+
 // Executor is the predicate function for executor builders.
 type Executor func(*sql.Selector)
 
 // JobDefinition is the predicate function for jobdefinition builders.
 type JobDefinition func(*sql.Selector)
 
+// JobExecutionLog is the predicate function for jobexecutionlog builders.
+type JobExecutionLog func(*sql.Selector)
+
 // JobInstance is the predicate function for jobinstance builders.
 type JobInstance func(*sql.Selector)
+
+// JobShard is the predicate function for jobshard builders.
+type JobShard func(*sql.Selector)
+
+// WorkflowDefinition is the predicate function for workflowdefinition builders.
+type WorkflowDefinition func(*sql.Selector)
+
+// WorkflowInstance is the predicate function for workflowinstance builders.
+type WorkflowInstance func(*sql.Selector)
+
+// WorkflowNode is the predicate function for workflownode builders.
+type WorkflowNode func(*sql.Selector)
+
+// WorkflowNodeInstance is the predicate function for workflownodeinstance builders.
+type WorkflowNodeInstance func(*sql.Selector)

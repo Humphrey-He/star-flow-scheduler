@@ -12,9 +12,16 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
+	"github.com/Humphrey-He/star-flow-scheduler/pkg/ent/deadletter"
 	"github.com/Humphrey-He/star-flow-scheduler/pkg/ent/executor"
 	"github.com/Humphrey-He/star-flow-scheduler/pkg/ent/jobdefinition"
+	"github.com/Humphrey-He/star-flow-scheduler/pkg/ent/jobexecutionlog"
 	"github.com/Humphrey-He/star-flow-scheduler/pkg/ent/jobinstance"
+	"github.com/Humphrey-He/star-flow-scheduler/pkg/ent/jobshard"
+	"github.com/Humphrey-He/star-flow-scheduler/pkg/ent/workflowdefinition"
+	"github.com/Humphrey-He/star-flow-scheduler/pkg/ent/workflowinstance"
+	"github.com/Humphrey-He/star-flow-scheduler/pkg/ent/workflownode"
+	"github.com/Humphrey-He/star-flow-scheduler/pkg/ent/workflownodeinstance"
 )
 
 // ent aliases to avoid import conflicts in user's code.
@@ -75,9 +82,16 @@ var (
 func checkColumn(table, column string) error {
 	initCheck.Do(func() {
 		columnCheck = sql.NewColumnCheck(map[string]func(string) bool{
-			executor.Table:      executor.ValidColumn,
-			jobdefinition.Table: jobdefinition.ValidColumn,
-			jobinstance.Table:   jobinstance.ValidColumn,
+			deadletter.Table:           deadletter.ValidColumn,
+			executor.Table:             executor.ValidColumn,
+			jobdefinition.Table:        jobdefinition.ValidColumn,
+			jobexecutionlog.Table:      jobexecutionlog.ValidColumn,
+			jobinstance.Table:          jobinstance.ValidColumn,
+			jobshard.Table:             jobshard.ValidColumn,
+			workflowdefinition.Table:   workflowdefinition.ValidColumn,
+			workflowinstance.Table:     workflowinstance.ValidColumn,
+			workflownode.Table:         workflownode.ValidColumn,
+			workflownodeinstance.Table: workflownodeinstance.ValidColumn,
 		})
 	})
 	return columnCheck(table, column)

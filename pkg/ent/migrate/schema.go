@@ -9,6 +9,38 @@ import (
 )
 
 var (
+	// DeadLettersColumns holds the columns for the "dead_letters" table.
+	DeadLettersColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "deleted_at", Type: field.TypeTime, Nullable: true},
+		{Name: "instance_no", Type: field.TypeString, Size: 64},
+		{Name: "job_id", Type: field.TypeInt64},
+		{Name: "dead_reason", Type: field.TypeString, Size: 64},
+		{Name: "dead_message", Type: field.TypeString, Nullable: true, Size: 1024},
+		{Name: "retry_snapshot", Type: field.TypeString, Nullable: true},
+		{Name: "last_executor_id", Type: field.TypeInt64, Nullable: true},
+		{Name: "status", Type: field.TypeString, Size: 32, Default: "open"},
+	}
+	// DeadLettersTable holds the schema information for the "dead_letters" table.
+	DeadLettersTable = &schema.Table{
+		Name:       "dead_letters",
+		Columns:    DeadLettersColumns,
+		PrimaryKey: []*schema.Column{DeadLettersColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "deadletter_status_dead_reason",
+				Unique:  false,
+				Columns: []*schema.Column{DeadLettersColumns[10], DeadLettersColumns[6]},
+			},
+			{
+				Name:    "deadletter_instance_no",
+				Unique:  false,
+				Columns: []*schema.Column{DeadLettersColumns[4]},
+			},
+		},
+	}
 	// ExecutorsColumns holds the columns for the "executors" table.
 	ExecutorsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -85,6 +117,38 @@ var (
 			},
 		},
 	}
+	// JobExecutionLogsColumns holds the columns for the "job_execution_logs" table.
+	JobExecutionLogsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "deleted_at", Type: field.TypeTime, Nullable: true},
+		{Name: "instance_no", Type: field.TypeString, Size: 64},
+		{Name: "shard_no", Type: field.TypeString, Nullable: true, Size: 64},
+		{Name: "executor_id", Type: field.TypeInt64, Nullable: true},
+		{Name: "log_level", Type: field.TypeString, Size: 16},
+		{Name: "phase", Type: field.TypeString, Size: 32},
+		{Name: "message", Type: field.TypeString, Size: 1024},
+		{Name: "trace_id", Type: field.TypeString, Nullable: true, Size: 64},
+	}
+	// JobExecutionLogsTable holds the schema information for the "job_execution_logs" table.
+	JobExecutionLogsTable = &schema.Table{
+		Name:       "job_execution_logs",
+		Columns:    JobExecutionLogsColumns,
+		PrimaryKey: []*schema.Column{JobExecutionLogsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "jobexecutionlog_instance_no",
+				Unique:  false,
+				Columns: []*schema.Column{JobExecutionLogsColumns[4]},
+			},
+			{
+				Name:    "jobexecutionlog_shard_no",
+				Unique:  false,
+				Columns: []*schema.Column{JobExecutionLogsColumns[5]},
+			},
+		},
+	}
 	// JobInstancesColumns holds the columns for the "job_instances" table.
 	JobInstancesColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -135,22 +199,221 @@ var (
 			},
 		},
 	}
+	// JobShardsColumns holds the columns for the "job_shards" table.
+	JobShardsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "deleted_at", Type: field.TypeTime, Nullable: true},
+		{Name: "instance_id", Type: field.TypeInt64},
+		{Name: "shard_no", Type: field.TypeString, Unique: true, Size: 64},
+		{Name: "shard_index", Type: field.TypeInt},
+		{Name: "shard_total", Type: field.TypeInt},
+		{Name: "route_key", Type: field.TypeString, Nullable: true, Size: 128},
+		{Name: "executor_id", Type: field.TypeInt64, Nullable: true},
+		{Name: "status", Type: field.TypeString, Size: 32},
+		{Name: "payload", Type: field.TypeString, Nullable: true},
+		{Name: "retry_count", Type: field.TypeInt, Default: 0},
+		{Name: "start_time", Type: field.TypeTime, Nullable: true},
+		{Name: "finish_time", Type: field.TypeTime, Nullable: true},
+		{Name: "error_message", Type: field.TypeString, Nullable: true, Size: 1024},
+	}
+	// JobShardsTable holds the schema information for the "job_shards" table.
+	JobShardsTable = &schema.Table{
+		Name:       "job_shards",
+		Columns:    JobShardsColumns,
+		PrimaryKey: []*schema.Column{JobShardsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "jobshard_instance_id_status",
+				Unique:  false,
+				Columns: []*schema.Column{JobShardsColumns[4], JobShardsColumns[10]},
+			},
+			{
+				Name:    "jobshard_instance_id_shard_index",
+				Unique:  true,
+				Columns: []*schema.Column{JobShardsColumns[4], JobShardsColumns[6]},
+			},
+		},
+	}
+	// WorkflowDefinitionsColumns holds the columns for the "workflow_definitions" table.
+	WorkflowDefinitionsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "deleted_at", Type: field.TypeTime, Nullable: true},
+		{Name: "workflow_code", Type: field.TypeString, Unique: true, Size: 64},
+		{Name: "workflow_name", Type: field.TypeString, Size: 128},
+		{Name: "description", Type: field.TypeString, Nullable: true, Size: 512},
+		{Name: "status", Type: field.TypeString, Size: 32, Default: "enabled"},
+	}
+	// WorkflowDefinitionsTable holds the schema information for the "workflow_definitions" table.
+	WorkflowDefinitionsTable = &schema.Table{
+		Name:       "workflow_definitions",
+		Columns:    WorkflowDefinitionsColumns,
+		PrimaryKey: []*schema.Column{WorkflowDefinitionsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "workflowdefinition_status",
+				Unique:  false,
+				Columns: []*schema.Column{WorkflowDefinitionsColumns[7]},
+			},
+		},
+	}
+	// WorkflowInstancesColumns holds the columns for the "workflow_instances" table.
+	WorkflowInstancesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "deleted_at", Type: field.TypeTime, Nullable: true},
+		{Name: "workflow_instance_no", Type: field.TypeString, Unique: true, Size: 64},
+		{Name: "workflow_id", Type: field.TypeInt64},
+		{Name: "workflow_code", Type: field.TypeString, Size: 64},
+		{Name: "status", Type: field.TypeString, Size: 32},
+		{Name: "start_time", Type: field.TypeTime, Nullable: true},
+		{Name: "finish_time", Type: field.TypeTime, Nullable: true},
+		{Name: "error_message", Type: field.TypeString, Nullable: true, Size: 1024},
+	}
+	// WorkflowInstancesTable holds the schema information for the "workflow_instances" table.
+	WorkflowInstancesTable = &schema.Table{
+		Name:       "workflow_instances",
+		Columns:    WorkflowInstancesColumns,
+		PrimaryKey: []*schema.Column{WorkflowInstancesColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "workflowinstance_workflow_code_status",
+				Unique:  false,
+				Columns: []*schema.Column{WorkflowInstancesColumns[6], WorkflowInstancesColumns[7]},
+			},
+			{
+				Name:    "workflowinstance_workflow_id",
+				Unique:  false,
+				Columns: []*schema.Column{WorkflowInstancesColumns[5]},
+			},
+		},
+	}
+	// WorkflowNodesColumns holds the columns for the "workflow_nodes" table.
+	WorkflowNodesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "deleted_at", Type: field.TypeTime, Nullable: true},
+		{Name: "workflow_id", Type: field.TypeInt64},
+		{Name: "node_code", Type: field.TypeString, Size: 64},
+		{Name: "node_name", Type: field.TypeString, Size: 128},
+		{Name: "job_code", Type: field.TypeString, Size: 64},
+		{Name: "upstream_codes", Type: field.TypeString, Nullable: true},
+		{Name: "trigger_condition", Type: field.TypeString, Size: 32, Default: "all_success"},
+		{Name: "fail_strategy", Type: field.TypeString, Size: 32, Default: "stop"},
+		{Name: "timeout_ms", Type: field.TypeInt, Default: 60000},
+		{Name: "sort_order", Type: field.TypeInt, Default: 0},
+	}
+	// WorkflowNodesTable holds the schema information for the "workflow_nodes" table.
+	WorkflowNodesTable = &schema.Table{
+		Name:       "workflow_nodes",
+		Columns:    WorkflowNodesColumns,
+		PrimaryKey: []*schema.Column{WorkflowNodesColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "workflownode_workflow_id_node_code",
+				Unique:  true,
+				Columns: []*schema.Column{WorkflowNodesColumns[4], WorkflowNodesColumns[5]},
+			},
+			{
+				Name:    "workflownode_workflow_id",
+				Unique:  false,
+				Columns: []*schema.Column{WorkflowNodesColumns[4]},
+			},
+		},
+	}
+	// WorkflowNodeInstancesColumns holds the columns for the "workflow_node_instances" table.
+	WorkflowNodeInstancesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "deleted_at", Type: field.TypeTime, Nullable: true},
+		{Name: "workflow_instance_id", Type: field.TypeInt64},
+		{Name: "workflow_id", Type: field.TypeInt64},
+		{Name: "node_code", Type: field.TypeString, Size: 64},
+		{Name: "job_id", Type: field.TypeInt64},
+		{Name: "job_instance_id", Type: field.TypeInt64, Nullable: true},
+		{Name: "status", Type: field.TypeString, Size: 32, Default: "pending"},
+		{Name: "error_message", Type: field.TypeString, Nullable: true, Size: 512},
+		{Name: "start_time", Type: field.TypeTime, Nullable: true},
+		{Name: "finish_time", Type: field.TypeTime, Nullable: true},
+	}
+	// WorkflowNodeInstancesTable holds the schema information for the "workflow_node_instances" table.
+	WorkflowNodeInstancesTable = &schema.Table{
+		Name:       "workflow_node_instances",
+		Columns:    WorkflowNodeInstancesColumns,
+		PrimaryKey: []*schema.Column{WorkflowNodeInstancesColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "workflownodeinstance_workflow_instance_id_node_code",
+				Unique:  true,
+				Columns: []*schema.Column{WorkflowNodeInstancesColumns[4], WorkflowNodeInstancesColumns[6]},
+			},
+			{
+				Name:    "workflownodeinstance_workflow_instance_id",
+				Unique:  false,
+				Columns: []*schema.Column{WorkflowNodeInstancesColumns[4]},
+			},
+			{
+				Name:    "workflownodeinstance_workflow_id",
+				Unique:  false,
+				Columns: []*schema.Column{WorkflowNodeInstancesColumns[5]},
+			},
+			{
+				Name:    "workflownodeinstance_status",
+				Unique:  false,
+				Columns: []*schema.Column{WorkflowNodeInstancesColumns[9]},
+			},
+		},
+	}
 	// Tables holds all the tables in the schema.
 	Tables = []*schema.Table{
+		DeadLettersTable,
 		ExecutorsTable,
 		JobDefinitionsTable,
+		JobExecutionLogsTable,
 		JobInstancesTable,
+		JobShardsTable,
+		WorkflowDefinitionsTable,
+		WorkflowInstancesTable,
+		WorkflowNodesTable,
+		WorkflowNodeInstancesTable,
 	}
 )
 
 func init() {
+	DeadLettersTable.Annotation = &entsql.Annotation{
+		Table: "dead_letters",
+	}
 	ExecutorsTable.Annotation = &entsql.Annotation{
 		Table: "executors",
 	}
 	JobDefinitionsTable.Annotation = &entsql.Annotation{
 		Table: "job_definitions",
 	}
+	JobExecutionLogsTable.Annotation = &entsql.Annotation{
+		Table: "job_execution_logs",
+	}
 	JobInstancesTable.Annotation = &entsql.Annotation{
 		Table: "job_instances",
+	}
+	JobShardsTable.Annotation = &entsql.Annotation{
+		Table: "job_shards",
+	}
+	WorkflowDefinitionsTable.Annotation = &entsql.Annotation{
+		Table: "workflow_definitions",
+	}
+	WorkflowInstancesTable.Annotation = &entsql.Annotation{
+		Table: "workflow_instances",
+	}
+	WorkflowNodesTable.Annotation = &entsql.Annotation{
+		Table: "workflow_nodes",
+	}
+	WorkflowNodeInstancesTable.Annotation = &entsql.Annotation{
+		Table: "workflow_node_instances",
 	}
 }
