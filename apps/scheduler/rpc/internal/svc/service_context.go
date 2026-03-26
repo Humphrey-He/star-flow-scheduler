@@ -12,29 +12,31 @@ import (
 	"github.com/Humphrey-He/star-flow-scheduler/apps/scheduler/rpc/internal/service/instance"
 	"github.com/Humphrey-He/star-flow-scheduler/apps/scheduler/rpc/internal/service/registry"
 	"github.com/Humphrey-He/star-flow-scheduler/apps/scheduler/rpc/internal/service/scanner"
+	"github.com/Humphrey-He/star-flow-scheduler/apps/scheduler/rpc/internal/service/workflow"
 	"github.com/Humphrey-He/star-flow-scheduler/pkg/db"
 	"github.com/Humphrey-He/star-flow-scheduler/pkg/ent"
-	pkgrepo "github.com/Humphrey-He/star-flow-scheduler/pkg/repo"
 	"github.com/Humphrey-He/star-flow-scheduler/pkg/redisx"
+	pkgrepo "github.com/Humphrey-He/star-flow-scheduler/pkg/repo"
 	"github.com/redis/go-redis/v9"
 )
 
 type ServiceContext struct {
-	Config       config.Config
-	DB           *db.DB
-	Ent          *ent.Client
-	ExecutorRepo *repo.ExecutorRepository
-	InstanceRepo *repo.JobInstanceRepository
-	JobRepo      *repo.JobRepository
-	RegistrySvc  *registry.Service
-	DispatchSvc  *dispatch.Service
-	InstanceSvc  *instance.Service
-	Redis        *redis.Client
-	DelayScanner *scanner.DelayScanner
-	Dispatcher   *dispatch.ReadyDispatcher
-	Heartbeat    redisx.HeartbeatCache
-	cancel       context.CancelFunc
-	wg           sync.WaitGroup
+	Config          config.Config
+	DB              *db.DB
+	Ent             *ent.Client
+	ExecutorRepo    *repo.ExecutorRepository
+	InstanceRepo    *repo.JobInstanceRepository
+	JobRepo         *repo.JobRepository
+	RegistrySvc     *registry.Service
+	DispatchSvc     *dispatch.Service
+	InstanceSvc     *instance.Service
+	Redis           *redis.Client
+	DelayScanner    *scanner.DelayScanner
+	Dispatcher      *dispatch.ReadyDispatcher
+	Heartbeat       redisx.HeartbeatCache
+	WorkflowRuntime *workflow.RuntimeService
+	cancel          context.CancelFunc
+	wg              sync.WaitGroup
 }
 
 func NewServiceContext(c config.Config) *ServiceContext {
@@ -63,24 +65,34 @@ func NewServiceContext(c config.Config) *ServiceContext {
 	}
 
 	dispatchSvc := dispatch.NewService(jobRepo, instanceRepo, executorRepo, nil, heartbeatCache, delayQueue)
+	workflowRuntime := workflow.NewRuntimeService(
+		database.Client,
+		pkgrepo.NewWorkflowRepository(database.Client),
+		pkgrepo.NewWorkflowNodeRepository(database.Client),
+		pkgrepo.NewWorkflowNodeInstanceRepository(database.Client),
+		pkgrepo.NewWorkflowInstanceRepository(database.Client),
+		pkgrepo.NewJobRepository(database.Client),
+		dispatchSvc,
+	)
 
 	return &ServiceContext{
-		Config:       c,
-		DB:           database,
-		Ent:          database.Client,
-		ExecutorRepo: executorRepo,
-		InstanceRepo: instanceRepo,
-		JobRepo:      jobRepo,
-		RegistrySvc:  registry.NewService(executorRepo, heartbeatCache, time.Duration(c.Registry.HeartbeatCacheTtlMs)*time.Millisecond),
-		DispatchSvc:  dispatchSvc,
-		InstanceSvc:  instance.NewService(instanceRepo),
-		Redis:        redisClient,
-		Heartbeat:    heartbeatCache,
+		Config:          c,
+		DB:              database,
+		Ent:             database.Client,
+		ExecutorRepo:    executorRepo,
+		InstanceRepo:    instanceRepo,
+		JobRepo:         jobRepo,
+		RegistrySvc:     registry.NewService(executorRepo, heartbeatCache, time.Duration(c.Registry.HeartbeatCacheTtlMs)*time.Millisecond),
+		DispatchSvc:     dispatchSvc,
+		InstanceSvc:     instance.NewService(instanceRepo),
+		Redis:           redisClient,
+		Heartbeat:       heartbeatCache,
+		WorkflowRuntime: workflowRuntime,
 		DelayScanner: scanner.NewDelayScanner(scanner.Config{
-			TickInterval: time.Duration(c.Scanner.TickIntervalMs) * time.Millisecond,
-			BatchSize:    c.Scanner.BatchSize,
-			LockTTL:      time.Duration(c.Scanner.LockTTLms) * time.Millisecond,
-			RequeueDelay: time.Duration(c.Scanner.RequeueDelayMs) * time.Millisecond,
+			TickInterval:     time.Duration(c.Scanner.TickIntervalMs) * time.Millisecond,
+			BatchSize:        c.Scanner.BatchSize,
+			LockTTL:          time.Duration(c.Scanner.LockTTLms) * time.Millisecond,
+			RequeueDelay:     time.Duration(c.Scanner.RequeueDelayMs) * time.Millisecond,
 			FallbackInterval: time.Duration(c.Scanner.FallbackIntervalMs) * time.Millisecond,
 		}, delayQueue, readyQueue, locker, instanceRepo),
 		Dispatcher: dispatch.NewReadyDispatcher(dispatch.ReadyDispatcherConfig{
