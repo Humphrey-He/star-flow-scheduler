@@ -24,6 +24,11 @@ func NewDispatchJobLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Dispa
 }
 
 func (l *DispatchJobLogic) DispatchJob(in *schedulerv1_schedulev1.DispatchJobRequest) (*schedulerv1_schedulev1.DispatchJobResponse, error) {
-	l.Logger.Infof("dispatch job instance=%s shard=%s handler=%s", in.InstanceNo, in.ShardNo, in.HandlerName)
+	err := l.svcCtx.DispatchSvc.DispatchJob(l.ctx, in)
+	if err != nil {
+		l.Logger.Errorf("dispatch job failed instance=%s err=%v", in.InstanceNo, err)
+		return &schedulerv1_schedulev1.DispatchJobResponse{Accepted: false, Message: err.Error()}, nil
+	}
+
 	return &schedulerv1_schedulev1.DispatchJobResponse{Accepted: true, Message: "accepted"}, nil
 }

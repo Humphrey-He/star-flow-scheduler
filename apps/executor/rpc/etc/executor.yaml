@@ -1,6 +1,32 @@
 Name: executor.rpc
 ListenOn: 0.0.0.0:8080
+SchedulerRpc:
+  Etcd:
+    Hosts:
+      - 127.0.0.1:2379
+    Key: scheduler.rpc
 Etcd:
   Hosts:
   - 127.0.0.1:2379
   Key: executor.rpc
+Executor:
+  ExecutorCode: executor-01
+  Host: 127.0.0.1
+  IP: 127.0.0.1
+  GrpcAddr: 0.0.0.0:8080
+  HttpAddr: ""
+  Tags:
+    - default
+  Capacity: 100
+  Version: "0.1.0"
+Runtime:
+  WorkerCount: 4
+  QueueSize: 100
+  DefaultTimeoutMs: 60000
+Registry:
+  HeartbeatIntervalSec: 5
+  RegisterRetryTimes: 3
+Reporter:
+  QueueSize: 100
+  RetryTimes: 3
+  RetryIntervalMs: 1000

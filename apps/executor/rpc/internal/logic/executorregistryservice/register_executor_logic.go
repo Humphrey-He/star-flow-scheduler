@@ -2,6 +2,7 @@ package executorregistryservicelogic
 
 import (
 	"context"
+	"errors"
 
 	"github.com/Humphrey-He/star-flow-scheduler/apps/executor/rpc/internal/svc"
 	"github.com/Humphrey-He/star-flow-scheduler/proto/pb/github.com/Humphrey-He/star-flow-scheduler/proto/schedulerv1"
@@ -24,7 +25,5 @@ func NewRegisterExecutorLogic(ctx context.Context, svcCtx *svc.ServiceContext) *
 }
 
 func (l *RegisterExecutorLogic) RegisterExecutor(in *schedulerv1_schedulev1.RegisterExecutorRequest) (*schedulerv1_schedulev1.RegisterExecutorResponse, error) {
-	// todo: add your logic here and delete this line
-
-	return &schedulerv1_schedulev1.RegisterExecutorResponse{}, nil
+	return nil, errors.New("executor registry server is not enabled in executor")
 }
