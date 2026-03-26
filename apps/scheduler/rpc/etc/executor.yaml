@@ -13,3 +13,8 @@ Redis:
   DialTimeoutMs: 1000
   ReadTimeoutMs: 1000
   WriteTimeoutMs: 1000
+Scanner:
+  TickIntervalMs: 1000
+  BatchSize: 100
+  LockTTLms: 5000
+  RequeueDelayMs: 1000
