@@ -7,7 +7,7 @@ import (
 	"github.com/Humphrey-He/star-flow-scheduler/apps/scheduler/api/internal/logic/scheduler"
 	"github.com/Humphrey-He/star-flow-scheduler/apps/scheduler/api/internal/svc"
 	"github.com/Humphrey-He/star-flow-scheduler/apps/scheduler/api/internal/types"
-	"github.com/Humphrey-He/star-flow-scheduler/internal/repo"
+	"github.com/Humphrey-He/star-flow-scheduler/pkg/repo"
 	"github.com/zeromicro/go-zero/rest/httpx"
 )
 

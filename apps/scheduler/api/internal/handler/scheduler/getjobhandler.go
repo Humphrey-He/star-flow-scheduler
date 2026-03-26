@@ -1,13 +1,13 @@
 package scheduler
 
 import (
-	"database/sql"
 	"errors"
 	"net/http"
 
 	"github.com/Humphrey-He/star-flow-scheduler/apps/scheduler/api/internal/logic/scheduler"
 	"github.com/Humphrey-He/star-flow-scheduler/apps/scheduler/api/internal/svc"
 	"github.com/Humphrey-He/star-flow-scheduler/apps/scheduler/api/internal/types"
+	"github.com/Humphrey-He/star-flow-scheduler/pkg/ent"
 	"github.com/zeromicro/go-zero/rest/httpx"
 )
 
@@ -22,7 +22,7 @@ func GetJobHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 		l := scheduler.NewGetJobLogic(r.Context(), svcCtx)
 		resp, err := l.GetJob(&req)
 		if err != nil {
-			if errors.Is(err, sql.ErrNoRows) {
+			if ent.IsNotFound(err) {
 				httpx.WriteJsonCtx(r.Context(), w, http.StatusNotFound, map[string]any{
 					"error": map[string]any{
 						"code":    "not_found",

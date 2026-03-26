@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/Humphrey-He/star-flow-scheduler/apps/scheduler/api/internal/types"
-	"github.com/Humphrey-He/star-flow-scheduler/internal/models"
+	"github.com/Humphrey-He/star-flow-scheduler/pkg/ent"
 )
 
 const timeLayout = time.RFC3339
@@ -25,7 +25,7 @@ func formatTimePtr(t *time.Time) *string {
 	return &s
 }
 
-func mapJobDefinition(job *models.JobDefinition) types.JobDefinition {
+func mapJobDefinition(job *ent.JobDefinition) types.JobDefinition {
 	return types.JobDefinition{
 		Id:                job.ID,
 		JobCode:           job.JobCode,
@@ -52,7 +52,7 @@ func mapJobDefinition(job *models.JobDefinition) types.JobDefinition {
 	}
 }
 
-func mapJobInstance(instance *models.JobInstance) types.JobInstance {
+func mapJobInstance(instance *ent.JobInstance) types.JobInstance {
 	return types.JobInstance{
 		Id:             instance.ID,
 		InstanceNo:     instance.InstanceNo,
@@ -66,7 +66,7 @@ func mapJobInstance(instance *models.JobInstance) types.JobInstance {
 		FinishTime:     formatTimePtr(instance.FinishTime),
 		Status:         instance.Status,
 		RetryCount:     instance.RetryCount,
-		CurrentBackoff: instance.CurrentBackoff,
+		CurrentBackoff: instance.CurrentBackoffMs,
 		ExecutorId:     instance.ExecutorID,
 		ShardTotal:     instance.ShardTotal,
 		SuccessShards:  instance.SuccessShards,

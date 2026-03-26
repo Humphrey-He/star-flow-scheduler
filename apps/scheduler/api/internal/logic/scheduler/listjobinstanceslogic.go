@@ -5,7 +5,7 @@ import (
 
 	"github.com/Humphrey-He/star-flow-scheduler/apps/scheduler/api/internal/svc"
 	"github.com/Humphrey-He/star-flow-scheduler/apps/scheduler/api/internal/types"
-	"github.com/Humphrey-He/star-flow-scheduler/internal/repo"
+	"github.com/Humphrey-He/star-flow-scheduler/pkg/repo"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )
@@ -49,9 +49,8 @@ func (l *ListJobInstancesLogic) ListJobInstances(req *types.ListJobInstancesRequ
 	}
 
 	respItems := make([]types.JobInstance, 0, len(items))
-	for i := range items {
-		item := items[i]
-		respItems = append(respItems, mapJobInstance(&item))
+	for _, item := range items {
+		respItems = append(respItems, mapJobInstance(item))
 	}
 
 	return &types.ListJobInstancesResponse{

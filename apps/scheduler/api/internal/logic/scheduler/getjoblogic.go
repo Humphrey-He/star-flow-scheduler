@@ -2,10 +2,10 @@ package scheduler
 
 import (
 	"context"
-	"database/sql"
 
 	"github.com/Humphrey-He/star-flow-scheduler/apps/scheduler/api/internal/svc"
 	"github.com/Humphrey-He/star-flow-scheduler/apps/scheduler/api/internal/types"
+	"github.com/Humphrey-He/star-flow-scheduler/pkg/ent"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )
@@ -27,9 +27,6 @@ func NewGetJobLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetJobLogi
 func (l *GetJobLogic) GetJob(req *types.GetJobRequest) (resp *types.GetJobResponse, err error) {
 	job, err := l.svcCtx.Jobs.GetByCode(l.ctx, req.JobCode)
 	if err != nil {
-		if err == sql.ErrNoRows {
-			return nil, err
-		}
 		return nil, err
 	}
 
