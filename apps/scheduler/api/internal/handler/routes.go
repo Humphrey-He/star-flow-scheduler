@@ -6,8 +6,7 @@ package handler
 import (
 	"net/http"
 
-	"github.com/Humphrey-He/star-flow-scheduler/apps/scheduler/api/internal/handler/instance"
-	"github.com/Humphrey-He/star-flow-scheduler/apps/scheduler/api/internal/handler/job"
+	scheduler "github.com/Humphrey-He/star-flow-scheduler/apps/scheduler/api/internal/handler/scheduler"
 	"github.com/Humphrey-He/star-flow-scheduler/apps/scheduler/api/internal/svc"
 
 	"github.com/zeromicro/go-zero/rest"
@@ -19,22 +18,22 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 			{
 				Method:  http.MethodGet,
 				Path:    "/job-instances",
-				Handler: instance.ListJobInstancesHandler(serverCtx),
+				Handler: scheduler.ListJobInstancesHandler(serverCtx),
 			},
 			{
 				Method:  http.MethodGet,
 				Path:    "/job-instances/:instanceNo",
-				Handler: instance.GetJobInstanceHandler(serverCtx),
+				Handler: scheduler.GetJobInstanceHandler(serverCtx),
 			},
 			{
 				Method:  http.MethodPost,
 				Path:    "/jobs",
-				Handler: job.CreateJobHandler(serverCtx),
+				Handler: scheduler.CreateJobHandler(serverCtx),
 			},
 			{
 				Method:  http.MethodGet,
 				Path:    "/jobs/:jobCode",
-				Handler: job.GetJobHandler(serverCtx),
+				Handler: scheduler.GetJobHandler(serverCtx),
 			},
 		},
 		rest.WithPrefix("/api/v1"),

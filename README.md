@@ -46,7 +46,7 @@ DATABASE_URL="postgres://postgres:password@127.0.0.1:5432/starflow?sslmode=disab
 ### 3. 启动服务
 ```
 # 调度中心 HTTP API
-go run ./apps/scheduler/api -f apps/scheduler/api/etc/scheduler-api.yaml
+go run ./apps/scheduler/api -f apps/scheduler/api/etc/scheduler_api.yaml
 
 # 调度中心 RPC
 go run ./apps/scheduler/rpc -f apps/scheduler/rpc/etc/executor.yaml
