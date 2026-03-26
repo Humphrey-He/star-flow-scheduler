@@ -49,13 +49,13 @@ func (l *RegisterExecutorLogic) RegisterExecutor(in *schedulerv1_schedulev1.Regi
 		Metadata:      nil,
 	}
 
-	_, err := l.svcCtx.Executors.Upsert(l.ctx, upsert)
+	exec, err := l.svcCtx.Executors.Upsert(l.ctx, upsert)
 	if err != nil {
 		return nil, err
 	}
 
 	return &schedulerv1_schedulev1.RegisterExecutorResponse{
-		ExecutorId:           0,
+		ExecutorId:           exec.ID,
 		HeartbeatIntervalSec: heartbeatIntervalSec,
 	}, nil
 }
