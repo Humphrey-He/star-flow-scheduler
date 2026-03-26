@@ -10,6 +10,7 @@ type Config struct {
 	PostgresDSN string `json:",optional"`
 	Redis       redisx.Config `json:",optional"`
 	Scanner     ScannerConf   `json:",optional"`
+	Dispatcher  DispatcherConf `json:",optional"`
 }
 
 type ScannerConf struct {
@@ -17,4 +18,10 @@ type ScannerConf struct {
 	BatchSize      int64 `json:",optional"`
 	LockTTLms      int64 `json:",optional"`
 	RequeueDelayMs int64 `json:",optional"`
+}
+
+type DispatcherConf struct {
+	PopTimeoutMs int64 `json:",optional"`
+	IdleSleepMs  int64 `json:",optional"`
+	RequeueMs    int64 `json:",optional"`
 }

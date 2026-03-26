@@ -31,6 +31,7 @@ type ServiceContext struct {
 	InstanceSvc  *instance.Service
 	Redis        *redis.Client
 	DelayScanner *scanner.DelayScanner
+	Dispatcher   *dispatch.ReadyDispatcher
 	cancel       context.CancelFunc
 	wg           sync.WaitGroup
 }
@@ -77,6 +78,11 @@ func NewServiceContext(c config.Config) *ServiceContext {
 			LockTTL:      time.Duration(c.Scanner.LockTTLms) * time.Millisecond,
 			RequeueDelay: time.Duration(c.Scanner.RequeueDelayMs) * time.Millisecond,
 		}, delayQueue, readyQueue, locker, instanceRepo),
+		Dispatcher: dispatch.NewReadyDispatcher(dispatch.ReadyDispatcherConfig{
+			PopTimeout: time.Duration(c.Dispatcher.PopTimeoutMs) * time.Millisecond,
+			IdleSleep:  time.Duration(c.Dispatcher.IdleSleepMs) * time.Millisecond,
+			Requeue:    time.Duration(c.Dispatcher.RequeueMs) * time.Millisecond,
+		}, readyQueue, instanceRepo, dispatchSvc),
 	}
 }
 
@@ -88,6 +94,13 @@ func (s *ServiceContext) Start(ctx context.Context) {
 		go func() {
 			defer s.wg.Done()
 			s.DelayScanner.Start(bg)
+		}()
+	}
+	if s.Dispatcher != nil {
+		s.wg.Add(1)
+		go func() {
+			defer s.wg.Done()
+			s.Dispatcher.Start(bg)
 		}()
 	}
 }
