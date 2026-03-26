@@ -43,6 +43,7 @@ type workflowNodeInstanceRepository interface {
 
 type workflowInstanceRepository interface {
 	Create(ctx context.Context, req pkgrepo.WorkflowInstanceCreate) (*ent.WorkflowInstance, error)
+	UpdateStatusIf(ctx context.Context, workflowInstanceID int64, fromStatus string, toStatus string) (int, error)
 }
 
 type jobRepository interface {
@@ -184,6 +185,10 @@ func (s *RuntimeService) OnNodeJobFinished(ctx context.Context, workflowInstance
 	if !ok {
 		return nil
 	}
+	if status == types.WorkflowNodeStatusFailed && failStrategyOf(current) == types.WorkflowFailStrategyStop {
+		_, _ = s.workflowInstances.UpdateStatusIf(ctx, workflowInstanceID, string(types.WorkflowStatusRunning), string(types.WorkflowStatusFailed))
+		return nil
+	}
 	downstreams := downstreamNodes(nodeMap, current.NodeCode)
 	if len(downstreams) == 0 {
 		return nil
@@ -296,6 +301,13 @@ func triggerConditionOf(node *ent.WorkflowNode) string {
 		return "all_success"
 	}
 	return node.TriggerCondition
+}
+
+func failStrategyOf(node *ent.WorkflowNode) types.WorkflowFailStrategy {
+	if node.FailStrategy == "" {
+		return types.WorkflowFailStrategyStop
+	}
+	return types.WorkflowFailStrategy(node.FailStrategy)
 }
 
 func (s *RuntimeService) triggerDownstreamNodes(ctx context.Context, workflowInstanceID int64, downstreams []*ent.WorkflowNode, nodeMap map[string]*ent.WorkflowNode, nodeInstanceMap map[string]*ent.WorkflowNodeInstance) {
