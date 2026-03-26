@@ -81,6 +81,7 @@ func NewServiceContext(c config.Config) *ServiceContext {
 			BatchSize:    c.Scanner.BatchSize,
 			LockTTL:      time.Duration(c.Scanner.LockTTLms) * time.Millisecond,
 			RequeueDelay: time.Duration(c.Scanner.RequeueDelayMs) * time.Millisecond,
+			FallbackInterval: time.Duration(c.Scanner.FallbackIntervalMs) * time.Millisecond,
 		}, delayQueue, readyQueue, locker, instanceRepo),
 		Dispatcher: dispatch.NewReadyDispatcher(dispatch.ReadyDispatcherConfig{
 			PopTimeout: time.Duration(c.Dispatcher.PopTimeoutMs) * time.Millisecond,

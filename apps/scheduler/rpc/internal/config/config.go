@@ -19,6 +19,7 @@ type ScannerConf struct {
 	BatchSize      int64 `json:",optional"`
 	LockTTLms      int64 `json:",optional"`
 	RequeueDelayMs int64 `json:",optional"`
+	FallbackIntervalMs int64 `json:",optional"`
 }
 
 type DispatcherConf struct {

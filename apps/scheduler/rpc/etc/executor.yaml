@@ -18,6 +18,7 @@ Scanner:
   BatchSize: 100
   LockTTLms: 5000
   RequeueDelayMs: 1000
+  FallbackIntervalMs: 5000
 Dispatcher:
   PopTimeoutMs: 1000
   IdleSleepMs: 300

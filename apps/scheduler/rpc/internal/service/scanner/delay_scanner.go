@@ -17,6 +17,7 @@ type Config struct {
 	BatchSize    int64
 	LockTTL      time.Duration
 	RequeueDelay time.Duration
+	FallbackInterval time.Duration
 }
 
 type DelayScanner struct {
@@ -26,6 +27,7 @@ type DelayScanner struct {
 	locker      redisx.Locker
 	instances   *repo.JobInstanceRepository
 	lockKey     string
+	lastFallback time.Time
 }
 
 func NewDelayScanner(cfg Config, delayQueue redisx.DelayQueue, readyQueue redisx.ReadyQueue, locker redisx.Locker, instances *repo.JobInstanceRepository) *DelayScanner {
@@ -77,6 +79,7 @@ func (s *DelayScanner) tick(ctx context.Context) {
 		if !errors.Is(err, redisx.ErrNotFound) {
 			logx.WithContext(ctx).Errorf("delay scanner pop due failed: %v", err)
 			metricsx.Inc("scanner_pop_error_total")
+			s.maybeFallback(ctx, now)
 		}
 		return
 	}
@@ -120,5 +123,48 @@ func withDefaults(cfg Config) Config {
 	if cfg.RequeueDelay <= 0 {
 		cfg.RequeueDelay = time.Second
 	}
+	if cfg.FallbackInterval <= 0 {
+		cfg.FallbackInterval = 5 * time.Second
+	}
 	return cfg
+}
+
+func (s *DelayScanner) maybeFallback(ctx context.Context, now time.Time) {
+	if s.readyQueue == nil || s.instances == nil {
+		return
+	}
+	if s.cfg.FallbackInterval <= 0 {
+		return
+	}
+	if !s.shouldFallback(now) {
+		return
+	}
+
+	items, err := s.instances.ListDueInstances(ctx, now, int(s.cfg.BatchSize))
+	if err != nil {
+		logx.WithContext(ctx).Errorf("delay scanner fallback list failed: %v", err)
+		metricsx.Inc("scanner_fallback_error_total")
+		return
+	}
+	if len(items) == 0 {
+		metricsx.Inc("scanner_fallback_empty_total")
+		return
+	}
+	metricsx.Add("scanner_fallback_total", int64(len(items)))
+	for _, instanceNo := range items {
+		if err := s.readyQueue.Push(ctx, instanceNo); err != nil {
+			logx.WithContext(ctx).Errorf("delay scanner fallback push instance=%s failed: %v", instanceNo, err)
+			metricsx.Inc("scanner_fallback_push_error_total")
+			continue
+		}
+		metricsx.Inc("scanner_fallback_ready_total")
+	}
+}
+
+func (s *DelayScanner) shouldFallback(now time.Time) bool {
+	if s.lastFallback.IsZero() || now.Sub(s.lastFallback) >= s.cfg.FallbackInterval {
+		s.lastFallback = now
+		return true
+	}
+	return false
 }
