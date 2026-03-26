@@ -86,6 +86,10 @@ func (r *JobRepository) GetByCode(ctx context.Context, jobCode string) (*ent.Job
 	return r.client.JobDefinition.Query().Where(jobdefinition.JobCodeEQ(jobCode)).Only(ctx)
 }
 
+func (r *JobRepository) GetByID(ctx context.Context, id int64) (*ent.JobDefinition, error) {
+	return r.client.JobDefinition.Get(ctx, int(id))
+}
+
 func (r *JobRepository) ExistsByCode(ctx context.Context, jobCode string) (bool, error) {
 	return r.client.JobDefinition.Query().Where(jobdefinition.JobCodeEQ(jobCode)).Exist(ctx)
 }

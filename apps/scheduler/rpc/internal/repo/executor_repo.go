@@ -22,3 +22,7 @@ func (r *ExecutorRepository) Upsert(ctx context.Context, req repo.ExecutorUpsert
 func (r *ExecutorRepository) UpdateHeartbeat(ctx context.Context, executorCode string, currentLoad int) error {
 	return r.inner.UpdateHeartbeat(ctx, executorCode, currentLoad)
 }
+
+func (r *ExecutorRepository) ListOnline(ctx context.Context, limit int) ([]*ent.Executor, error) {
+	return r.inner.ListOnline(ctx, limit)
+}

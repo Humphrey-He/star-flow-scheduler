@@ -96,3 +96,14 @@ func (r *ExecutorRepository) UpdateHeartbeat(ctx context.Context, executorCode s
 		SetStatus("online").
 		Exec(ctx)
 }
+
+func (r *ExecutorRepository) ListOnline(ctx context.Context, limit int) ([]*ent.Executor, error) {
+	if limit <= 0 {
+		limit = 10
+	}
+	return r.client.Executor.Query().
+		Where(executor.StatusEQ("online")).
+		Order(ent.Asc(executor.FieldCurrentLoad), ent.Desc(executor.FieldLastHeartbeatAt)).
+		Limit(limit).
+		All(ctx)
+}

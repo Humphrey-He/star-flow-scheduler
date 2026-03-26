@@ -27,6 +27,18 @@ func NewJobInstanceRepository(client *ent.Client) *JobInstanceRepository {
 	return &JobInstanceRepository{client: client}
 }
 
+type JobInstanceCreate struct {
+	InstanceNo    string
+	JobID         int64
+	WorkflowID    *int64
+	TriggerType   string
+	TriggerTime   time.Time
+	ScheduledTime time.Time
+	Status        string
+	Payload       *string
+	ShardTotal    int
+}
+
 func (r *JobInstanceRepository) List(ctx context.Context, filter JobInstanceFilter) ([]*ent.JobInstance, int, error) {
 	if filter.Page <= 0 {
 		filter.Page = 1
@@ -78,4 +90,24 @@ func (r *JobInstanceRepository) List(ctx context.Context, filter JobInstanceFilt
 func (r *JobInstanceRepository) GetByInstanceNo(ctx context.Context, instanceNo string) (*ent.JobInstance, error) {
 	instanceNo = strings.TrimSpace(instanceNo)
 	return r.client.JobInstance.Query().Where(jobinstance.InstanceNoEQ(instanceNo)).Only(ctx)
+}
+
+func (r *JobInstanceRepository) Create(ctx context.Context, req JobInstanceCreate) (*ent.JobInstance, error) {
+	create := r.client.JobInstance.Create().
+		SetInstanceNo(req.InstanceNo).
+		SetJobID(req.JobID).
+		SetTriggerType(req.TriggerType).
+		SetTriggerTime(req.TriggerTime).
+		SetScheduledTime(req.ScheduledTime).
+		SetStatus(req.Status).
+		SetShardTotal(req.ShardTotal)
+
+	if req.WorkflowID != nil {
+		create.SetWorkflowID(*req.WorkflowID)
+	}
+	if req.Payload != nil {
+		create.SetPayload(*req.Payload)
+	}
+
+	return create.Save(ctx)
 }
