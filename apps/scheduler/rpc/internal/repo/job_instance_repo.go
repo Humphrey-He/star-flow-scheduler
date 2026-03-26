@@ -15,6 +15,21 @@ func NewJobInstanceRepository(client *ent.Client) *JobInstanceRepository {
 	return &JobInstanceRepository{client: client}
 }
 
+func (r *JobInstanceRepository) GetByInstanceNo(ctx context.Context, instanceNo string) (*ent.JobInstance, error) {
+	return r.client.JobInstance.Query().Where(jobinstance.InstanceNoEQ(instanceNo)).Only(ctx)
+}
+
+func (r *JobInstanceRepository) GetStatusByInstanceNo(ctx context.Context, instanceNo string) (string, error) {
+	row, err := r.client.JobInstance.Query().
+		Where(jobinstance.InstanceNoEQ(instanceNo)).
+		Select(jobinstance.FieldStatus).
+		Only(ctx)
+	if err != nil {
+		return "", err
+	}
+	return row.Status, nil
+}
+
 func (r *JobInstanceRepository) UpdateStatusIf(ctx context.Context, instanceNo string, fromStatus string, toStatus string) (int, error) {
 	return r.client.JobInstance.Update().
 		Where(jobinstance.InstanceNoEQ(instanceNo), jobinstance.StatusEQ(fromStatus)).
@@ -22,10 +37,10 @@ func (r *JobInstanceRepository) UpdateStatusIf(ctx context.Context, instanceNo s
 		Save(ctx)
 }
 
-func (r *JobInstanceRepository) UpdateResult(ctx context.Context, instanceNo string, status string, resultSummary *string, errorCode *string, errorMessage *string) (int, error) {
+func (r *JobInstanceRepository) UpdateResultIfStatus(ctx context.Context, instanceNo string, fromStatus string, toStatus string, resultSummary *string, errorCode *string, errorMessage *string) (int, error) {
 	upd := r.client.JobInstance.Update().
-		Where(jobinstance.InstanceNoEQ(instanceNo)).
-		SetStatus(status)
+		Where(jobinstance.InstanceNoEQ(instanceNo), jobinstance.StatusEQ(fromStatus)).
+		SetStatus(toStatus)
 
 	if resultSummary != nil {
 		upd.SetResultSummary(*resultSummary)
