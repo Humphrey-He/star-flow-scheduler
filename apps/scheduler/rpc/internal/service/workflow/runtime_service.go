@@ -15,23 +15,52 @@ import (
 
 type RuntimeService struct {
 	ent               *ent.Client
-	workflows         *pkgrepo.WorkflowRepository
-	nodes             *pkgrepo.WorkflowNodeRepository
-	nodeInstances     *pkgrepo.WorkflowNodeInstanceRepository
-	workflowInstances *pkgrepo.WorkflowInstanceRepository
-	jobs              *pkgrepo.JobRepository
-	dispatcher        *dispatch.Service
+	workflows         workflowRepository
+	nodes             workflowNodeRepository
+	nodeInstances     workflowNodeInstanceRepository
+	workflowInstances workflowInstanceRepository
+	jobs              jobRepository
+	dispatcher        instanceCreator
 	resolver          DependencyResolver
+}
+
+type workflowRepository interface {
+	GetByCode(ctx context.Context, workflowCode string) (*ent.WorkflowDefinition, error)
+}
+
+type workflowNodeRepository interface {
+	ListByWorkflowID(ctx context.Context, workflowID int64) ([]*ent.WorkflowNode, error)
+}
+
+type workflowNodeInstanceRepository interface {
+	BatchCreate(ctx context.Context, items []pkgrepo.WorkflowNodeInstanceCreate) ([]*ent.WorkflowNodeInstance, error)
+	ListByWorkflowInstanceID(ctx context.Context, workflowInstanceID int64) ([]*ent.WorkflowNodeInstance, error)
+	GetByWorkflowInstanceIDAndNodeCode(ctx context.Context, workflowInstanceID int64, nodeCode string) (*ent.WorkflowNodeInstance, error)
+	GetByJobInstanceID(ctx context.Context, jobInstanceID int64) (*ent.WorkflowNodeInstance, error)
+	UpdateStatusIf(ctx context.Context, workflowInstanceID int64, nodeCode string, fromStatus string, toStatus string, startTime *time.Time) (int, error)
+	UpdateJobInstanceID(ctx context.Context, workflowInstanceID int64, nodeCode string, jobInstanceID int64) (int, error)
+}
+
+type workflowInstanceRepository interface {
+	Create(ctx context.Context, req pkgrepo.WorkflowInstanceCreate) (*ent.WorkflowInstance, error)
+}
+
+type jobRepository interface {
+	GetByCode(ctx context.Context, jobCode string) (*ent.JobDefinition, error)
+}
+
+type instanceCreator interface {
+	CreateInstance(ctx context.Context, jobCode string, triggerType string, payload *string) (*ent.JobInstance, error)
 }
 
 func NewRuntimeService(
 	entClient *ent.Client,
-	workflows *pkgrepo.WorkflowRepository,
-	nodes *pkgrepo.WorkflowNodeRepository,
-	nodeInstances *pkgrepo.WorkflowNodeInstanceRepository,
-	workflowInstances *pkgrepo.WorkflowInstanceRepository,
-	jobs *pkgrepo.JobRepository,
-	dispatcher *dispatch.Service,
+	workflows workflowRepository,
+	nodes workflowNodeRepository,
+	nodeInstances workflowNodeInstanceRepository,
+	workflowInstances workflowInstanceRepository,
+	jobs jobRepository,
+	dispatcher instanceCreator,
 ) *RuntimeService {
 	return &RuntimeService{
 		ent:               entClient,
