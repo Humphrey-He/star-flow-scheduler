@@ -9,6 +9,7 @@ import (
 
 	"github.com/Humphrey-He/star-flow-scheduler/apps/executor/rpc/internal/handler"
 	"github.com/Humphrey-He/star-flow-scheduler/apps/executor/rpc/internal/model"
+	"github.com/Humphrey-He/star-flow-scheduler/pkg/metricsx"
 	schedulev1 "github.com/Humphrey-He/star-flow-scheduler/proto/pb/github.com/Humphrey-He/star-flow-scheduler/proto/schedulerv1"
 
 	"github.com/zeromicro/go-zero/core/logx"
@@ -63,6 +64,7 @@ func (p *WorkerPool) worker(ctx context.Context, idx int) {
 
 func (p *WorkerPool) executeTask(ctx context.Context, task *model.Task) {
 	start := time.Now()
+	metricsx.Inc("executor_task_started_total")
 	result := &model.TaskResult{
 		InstanceNo: task.InstanceNo,
 		ShardNo:    task.ShardNo,
@@ -102,6 +104,12 @@ func (p *WorkerPool) executeTask(ctx context.Context, task *model.Task) {
 	}
 
 	result.FinishTime = time.Now()
+	metricsx.ObserveDurationMs("executor_task_duration_ms", result.FinishTime.Sub(start))
+	if result.Status == schedulev1.InstanceStatus_INSTANCE_STATUS_SUCCESS {
+		metricsx.Inc("executor_task_success_total")
+	} else {
+		metricsx.Inc("executor_task_fail_total")
+	}
 	p.reporter.Report(result)
 }
 

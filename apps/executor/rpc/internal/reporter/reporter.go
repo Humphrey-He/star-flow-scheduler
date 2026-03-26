@@ -6,6 +6,7 @@ import (
 
 	"github.com/Humphrey-He/star-flow-scheduler/apps/executor/rpc/internal/model"
 	"github.com/Humphrey-He/star-flow-scheduler/apps/scheduler/rpc/client/dispatchservice"
+	"github.com/Humphrey-He/star-flow-scheduler/pkg/metricsx"
 	schedulev1 "github.com/Humphrey-He/star-flow-scheduler/proto/pb/github.com/Humphrey-He/star-flow-scheduler/proto/schedulerv1"
 
 	"github.com/zeromicro/go-zero/core/logx"
@@ -61,6 +62,7 @@ func (r *Reporter) loop(ctx context.Context) {
 }
 
 func (r *Reporter) sendResult(ctx context.Context, result *model.TaskResult) error {
+	metricsx.Inc("executor_report_result_total")
 	var lastErr error
 	for i := 0; i <= r.retryTimes; i++ {
 		_, err := r.client.ReportResult(ctx, &schedulev1.ReportResultRequest{
@@ -81,6 +83,7 @@ func (r *Reporter) sendResult(ctx context.Context, result *model.TaskResult) err
 			time.Sleep(r.retryInterval)
 		}
 	}
+	metricsx.Inc("executor_report_result_fail_total")
 	return lastErr
 }
 
