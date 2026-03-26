@@ -9,12 +9,12 @@ import (
 
 	"github.com/Humphrey-He/star-flow-scheduler/apps/scheduler/rpc/internal/logic/schedulerinternalservice"
 	"github.com/Humphrey-He/star-flow-scheduler/apps/scheduler/rpc/internal/svc"
-	schedulerv1_schedulev1 "github.com/Humphrey-He/star-flow-scheduler/proto/pb/github.com/Humphrey-He/star-flow-scheduler/proto/schedulerv1"
+	schedulev1 "github.com/Humphrey-He/star-flow-scheduler/proto/pb/github.com/Humphrey-He/star-flow-scheduler/proto/schedulerv1"
 )
 
 type SchedulerInternalServiceServer struct {
 	svcCtx *svc.ServiceContext
-	schedulerv1_schedulev1.UnimplementedSchedulerInternalServiceServer
+	schedulev1.UnimplementedSchedulerInternalServiceServer
 }
 
 func NewSchedulerInternalServiceServer(svcCtx *svc.ServiceContext) *SchedulerInternalServiceServer {
@@ -23,12 +23,12 @@ func NewSchedulerInternalServiceServer(svcCtx *svc.ServiceContext) *SchedulerInt
 	}
 }
 
-func (s *SchedulerInternalServiceServer) CreateInstance(ctx context.Context, in *schedulerv1_schedulev1.CreateInstanceRequest) (*schedulerv1_schedulev1.CreateInstanceResponse, error) {
+func (s *SchedulerInternalServiceServer) CreateInstance(ctx context.Context, in *schedulev1.CreateInstanceRequest) (*schedulev1.CreateInstanceResponse, error) {
 	l := schedulerinternalservicelogic.NewCreateInstanceLogic(ctx, s.svcCtx)
 	return l.CreateInstance(in)
 }
 
-func (s *SchedulerInternalServiceServer) DispatchInstance(ctx context.Context, in *schedulerv1_schedulev1.DispatchInstanceRequest) (*schedulerv1_schedulev1.DispatchInstanceResponse, error) {
+func (s *SchedulerInternalServiceServer) DispatchInstance(ctx context.Context, in *schedulev1.DispatchInstanceRequest) (*schedulev1.DispatchInstanceResponse, error) {
 	l := schedulerinternalservicelogic.NewDispatchInstanceLogic(ctx, s.svcCtx)
 	return l.DispatchInstance(in)
 }

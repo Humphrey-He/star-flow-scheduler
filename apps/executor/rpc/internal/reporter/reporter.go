@@ -6,7 +6,7 @@ import (
 
 	"github.com/Humphrey-He/star-flow-scheduler/apps/executor/rpc/internal/model"
 	"github.com/Humphrey-He/star-flow-scheduler/apps/scheduler/rpc/client/dispatchservice"
-	schedulerv1_schedulev1 "github.com/Humphrey-He/star-flow-scheduler/proto/pb/github.com/Humphrey-He/star-flow-scheduler/proto/schedulerv1"
+	schedulev1 "github.com/Humphrey-He/star-flow-scheduler/proto/pb/github.com/Humphrey-He/star-flow-scheduler/proto/schedulerv1"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )
@@ -63,7 +63,7 @@ func (r *Reporter) loop(ctx context.Context) {
 func (r *Reporter) sendResult(ctx context.Context, result *model.TaskResult) error {
 	var lastErr error
 	for i := 0; i <= r.retryTimes; i++ {
-		_, err := r.client.ReportResult(ctx, &schedulerv1_schedulev1.ReportResultRequest{
+		_, err := r.client.ReportResult(ctx, &schedulev1.ReportResultRequest{
 			InstanceNo:    result.InstanceNo,
 			ShardNo:       result.ShardNo,
 			Status:        result.Status,

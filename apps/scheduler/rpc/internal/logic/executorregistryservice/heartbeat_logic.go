@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/Humphrey-He/star-flow-scheduler/apps/scheduler/rpc/internal/svc"
-	schedulerv1_schedulev1 "github.com/Humphrey-He/star-flow-scheduler/proto/pb/github.com/Humphrey-He/star-flow-scheduler/proto/schedulerv1"
+	schedulev1 "github.com/Humphrey-He/star-flow-scheduler/proto/pb/github.com/Humphrey-He/star-flow-scheduler/proto/schedulerv1"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )
@@ -23,14 +23,14 @@ func NewHeartbeatLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Heartbe
 	}
 }
 
-func (l *HeartbeatLogic) Heartbeat(in *schedulerv1_schedulev1.HeartbeatRequest) (*schedulerv1_schedulev1.HeartbeatResponse, error) {
+func (l *HeartbeatLogic) Heartbeat(in *schedulev1.HeartbeatRequest) (*schedulev1.HeartbeatResponse, error) {
 	err := l.svcCtx.RegistrySvc.Heartbeat(l.ctx, in.ExecutorCode, int(in.CurrentLoad))
 	if err != nil {
 		return nil, err
 	}
 
-	return &schedulerv1_schedulev1.HeartbeatResponse{
-		Status:        schedulerv1_schedulev1.ExecutorStatus_EXECUTOR_STATUS_ONLINE,
+	return &schedulev1.HeartbeatResponse{
+		Status:        schedulev1.ExecutorStatus_EXECUTOR_STATUS_ONLINE,
 		AcceptNewJobs: true,
 	}, nil
 }

@@ -8,7 +8,7 @@ import (
 
 	"github.com/Humphrey-He/star-flow-scheduler/apps/executor/rpc/internal/handler"
 	"github.com/Humphrey-He/star-flow-scheduler/apps/executor/rpc/internal/model"
-	schedulerv1_schedulev1 "github.com/Humphrey-He/star-flow-scheduler/proto/pb/github.com/Humphrey-He/star-flow-scheduler/proto/schedulerv1"
+	schedulev1 "github.com/Humphrey-He/star-flow-scheduler/proto/pb/github.com/Humphrey-He/star-flow-scheduler/proto/schedulerv1"
 )
 
 type testHandler struct {
@@ -56,7 +56,7 @@ func TestRuntimeExecutesTask(t *testing.T) {
 
 	select {
 	case res := <-rep.ch:
-		if res.Status != schedulerv1_schedulev1.InstanceStatus_INSTANCE_STATUS_SUCCESS {
+		if res.Status != schedulev1.InstanceStatus_INSTANCE_STATUS_SUCCESS {
 			t.Fatalf("expected success got %v", res.Status)
 		}
 	case <-time.After(2 * time.Second):
@@ -89,7 +89,7 @@ func TestRuntimeHandlesHandlerError(t *testing.T) {
 
 	select {
 	case res := <-rep.ch:
-		if res.Status != schedulerv1_schedulev1.InstanceStatus_INSTANCE_STATUS_FAILED {
+		if res.Status != schedulev1.InstanceStatus_INSTANCE_STATUS_FAILED {
 			t.Fatalf("expected failed got %v", res.Status)
 		}
 	case <-time.After(2 * time.Second):

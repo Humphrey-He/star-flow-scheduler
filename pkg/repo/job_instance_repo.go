@@ -8,6 +8,7 @@ import (
 	"github.com/Humphrey-He/star-flow-scheduler/pkg/ent"
 	"github.com/Humphrey-He/star-flow-scheduler/pkg/ent/jobdefinition"
 	"github.com/Humphrey-He/star-flow-scheduler/pkg/ent/jobinstance"
+	"github.com/Humphrey-He/star-flow-scheduler/pkg/types"
 )
 
 type JobInstanceFilter struct {
@@ -110,4 +111,81 @@ func (r *JobInstanceRepository) Create(ctx context.Context, req JobInstanceCreat
 	}
 
 	return create.Save(ctx)
+}
+
+func (r *JobInstanceRepository) UpdateStatusIf(ctx context.Context, instanceNo string, fromStatus types.InstanceStatus, toStatus types.InstanceStatus) (int, error) {
+	return r.client.JobInstance.Update().
+		Where(jobinstance.InstanceNoEQ(instanceNo), jobinstance.StatusEQ(string(fromStatus))).
+		SetStatus(string(toStatus)).
+		Save(ctx)
+}
+
+func (r *JobInstanceRepository) UpdateResultIfStatus(ctx context.Context, instanceNo string, fromStatus types.InstanceStatus, toStatus types.InstanceStatus, startTime *time.Time, finishTime *time.Time, resultSummary *string, errorCode *string, errorMessage *string) (int, error) {
+	upd := r.client.JobInstance.Update().
+		Where(jobinstance.InstanceNoEQ(instanceNo), jobinstance.StatusEQ(string(fromStatus))).
+		SetStatus(string(toStatus))
+
+	if startTime != nil {
+		upd.SetStartTime(*startTime)
+	}
+	if finishTime != nil {
+		upd.SetFinishTime(*finishTime)
+	}
+	if resultSummary != nil {
+		upd.SetResultSummary(*resultSummary)
+	}
+	if errorCode != nil {
+		upd.SetErrorCode(*errorCode)
+	}
+	if errorMessage != nil {
+		upd.SetErrorMessage(*errorMessage)
+	}
+
+	return upd.Save(ctx)
+}
+
+func (r *JobInstanceRepository) MarkDispatchedIfPending(ctx context.Context, instanceNo string, executorID int64, dispatchTime time.Time) (int, error) {
+	return r.client.JobInstance.Update().
+		Where(jobinstance.InstanceNoEQ(instanceNo), jobinstance.StatusEQ(string(types.InstanceStatusPending))).
+		SetStatus(string(types.InstanceStatusDispatched)).
+		SetExecutorID(executorID).
+		SetDispatchTime(dispatchTime).
+		Save(ctx)
+}
+
+func (r *JobInstanceRepository) MarkRunningIfDispatched(ctx context.Context, instanceNo string, startTime time.Time) (int, error) {
+	return r.client.JobInstance.Update().
+		Where(jobinstance.InstanceNoEQ(instanceNo), jobinstance.StatusEQ(string(types.InstanceStatusDispatched))).
+		SetStatus(string(types.InstanceStatusRunning)).
+		SetStartTime(startTime).
+		Save(ctx)
+}
+
+func (r *JobInstanceRepository) MarkSuccessIfRunning(ctx context.Context, instanceNo string, finishTime time.Time, resultSummary *string) (int, error) {
+	upd := r.client.JobInstance.Update().
+		Where(jobinstance.InstanceNoEQ(instanceNo), jobinstance.StatusEQ(string(types.InstanceStatusRunning))).
+		SetStatus(string(types.InstanceStatusSuccess)).
+		SetFinishTime(finishTime)
+
+	if resultSummary != nil {
+		upd.SetResultSummary(*resultSummary)
+	}
+
+	return upd.Save(ctx)
+}
+
+func (r *JobInstanceRepository) MarkFailedIfRunning(ctx context.Context, instanceNo string, finishTime time.Time, errorCode *string, errorMessage *string) (int, error) {
+	upd := r.client.JobInstance.Update().
+		Where(jobinstance.InstanceNoEQ(instanceNo), jobinstance.StatusEQ(string(types.InstanceStatusRunning))).
+		SetStatus(string(types.InstanceStatusFailed)).
+		SetFinishTime(finishTime)
+
+	if errorCode != nil {
+		upd.SetErrorCode(*errorCode)
+	}
+	if errorMessage != nil {
+		upd.SetErrorMessage(*errorMessage)
+	}
+
+	return upd.Save(ctx)
 }

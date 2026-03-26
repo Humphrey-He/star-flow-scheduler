@@ -7,21 +7,21 @@ package executorregistryservice
 import (
 	"context"
 
-	schedulerv1_schedulev1 "github.com/Humphrey-He/star-flow-scheduler/proto/pb/github.com/Humphrey-He/star-flow-scheduler/proto/schedulerv1"
+	schedulev1 "github.com/Humphrey-He/star-flow-scheduler/proto/pb/github.com/Humphrey-He/star-flow-scheduler/proto/schedulerv1"
 
 	"github.com/zeromicro/go-zero/zrpc"
 	"google.golang.org/grpc"
 )
 
 type (
-	DispatchJobRequest       = schedulerv1_schedulev1.DispatchJobRequest
-	DispatchJobResponse      = schedulerv1_schedulev1.DispatchJobResponse
-	HeartbeatRequest         = schedulerv1_schedulev1.HeartbeatRequest
-	HeartbeatResponse        = schedulerv1_schedulev1.HeartbeatResponse
-	RegisterExecutorRequest  = schedulerv1_schedulev1.RegisterExecutorRequest
-	RegisterExecutorResponse = schedulerv1_schedulev1.RegisterExecutorResponse
-	ReportResultRequest      = schedulerv1_schedulev1.ReportResultRequest
-	ReportResultResponse     = schedulerv1_schedulev1.ReportResultResponse
+	DispatchJobRequest       = schedulev1.DispatchJobRequest
+	DispatchJobResponse      = schedulev1.DispatchJobResponse
+	HeartbeatRequest         = schedulev1.HeartbeatRequest
+	HeartbeatResponse        = schedulev1.HeartbeatResponse
+	RegisterExecutorRequest  = schedulev1.RegisterExecutorRequest
+	RegisterExecutorResponse = schedulev1.RegisterExecutorResponse
+	ReportResultRequest      = schedulev1.ReportResultRequest
+	ReportResultResponse     = schedulev1.ReportResultResponse
 
 	ExecutorRegistryService interface {
 		RegisterExecutor(ctx context.Context, in *RegisterExecutorRequest, opts ...grpc.CallOption) (*RegisterExecutorResponse, error)
@@ -40,11 +40,11 @@ func NewExecutorRegistryService(cli zrpc.Client) ExecutorRegistryService {
 }
 
 func (m *defaultExecutorRegistryService) RegisterExecutor(ctx context.Context, in *RegisterExecutorRequest, opts ...grpc.CallOption) (*RegisterExecutorResponse, error) {
-	client := schedulerv1_schedulev1.NewExecutorRegistryServiceClient(m.cli.Conn())
+	client := schedulev1.NewExecutorRegistryServiceClient(m.cli.Conn())
 	return client.RegisterExecutor(ctx, in, opts...)
 }
 
 func (m *defaultExecutorRegistryService) Heartbeat(ctx context.Context, in *HeartbeatRequest, opts ...grpc.CallOption) (*HeartbeatResponse, error) {
-	client := schedulerv1_schedulev1.NewExecutorRegistryServiceClient(m.cli.Conn())
+	client := schedulev1.NewExecutorRegistryServiceClient(m.cli.Conn())
 	return client.Heartbeat(ctx, in, opts...)
 }

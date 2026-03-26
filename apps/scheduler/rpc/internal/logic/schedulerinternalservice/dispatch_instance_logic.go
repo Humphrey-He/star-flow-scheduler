@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/Humphrey-He/star-flow-scheduler/apps/scheduler/rpc/internal/svc"
-	schedulerv1_schedulev1 "github.com/Humphrey-He/star-flow-scheduler/proto/pb/github.com/Humphrey-He/star-flow-scheduler/proto/schedulerv1"
+	schedulev1 "github.com/Humphrey-He/star-flow-scheduler/proto/pb/github.com/Humphrey-He/star-flow-scheduler/proto/schedulerv1"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )
@@ -23,7 +23,7 @@ func NewDispatchInstanceLogic(ctx context.Context, svcCtx *svc.ServiceContext) *
 	}
 }
 
-func (l *DispatchInstanceLogic) DispatchInstance(in *schedulerv1_schedulev1.DispatchInstanceRequest) (*schedulerv1_schedulev1.DispatchInstanceResponse, error) {
+func (l *DispatchInstanceLogic) DispatchInstance(in *schedulev1.DispatchInstanceRequest) (*schedulev1.DispatchInstanceResponse, error) {
 	if in == nil {
 		return nil, nil
 	}
@@ -33,7 +33,7 @@ func (l *DispatchInstanceLogic) DispatchInstance(in *schedulerv1_schedulev1.Disp
 		return nil, err
 	}
 
-	return &schedulerv1_schedulev1.DispatchInstanceResponse{
+	return &schedulev1.DispatchInstanceResponse{
 		Dispatched:   true,
 		ExecutorCode: exec.ExecutorCode,
 	}, nil

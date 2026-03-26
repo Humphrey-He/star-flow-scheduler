@@ -9,12 +9,12 @@ import (
 
 	"github.com/Humphrey-He/star-flow-scheduler/apps/executor/rpc/internal/logic/dispatchservice"
 	"github.com/Humphrey-He/star-flow-scheduler/apps/executor/rpc/internal/svc"
-	schedulerv1_schedulev1 "github.com/Humphrey-He/star-flow-scheduler/proto/pb/github.com/Humphrey-He/star-flow-scheduler/proto/schedulerv1"
+	schedulev1 "github.com/Humphrey-He/star-flow-scheduler/proto/pb/github.com/Humphrey-He/star-flow-scheduler/proto/schedulerv1"
 )
 
 type DispatchServiceServer struct {
 	svcCtx *svc.ServiceContext
-	schedulerv1_schedulev1.UnimplementedDispatchServiceServer
+	schedulev1.UnimplementedDispatchServiceServer
 }
 
 func NewDispatchServiceServer(svcCtx *svc.ServiceContext) *DispatchServiceServer {
@@ -23,12 +23,12 @@ func NewDispatchServiceServer(svcCtx *svc.ServiceContext) *DispatchServiceServer
 	}
 }
 
-func (s *DispatchServiceServer) DispatchJob(ctx context.Context, in *schedulerv1_schedulev1.DispatchJobRequest) (*schedulerv1_schedulev1.DispatchJobResponse, error) {
+func (s *DispatchServiceServer) DispatchJob(ctx context.Context, in *schedulev1.DispatchJobRequest) (*schedulev1.DispatchJobResponse, error) {
 	l := dispatchservicelogic.NewDispatchJobLogic(ctx, s.svcCtx)
 	return l.DispatchJob(in)
 }
 
-func (s *DispatchServiceServer) ReportResult(ctx context.Context, in *schedulerv1_schedulev1.ReportResultRequest) (*schedulerv1_schedulev1.ReportResultResponse, error) {
+func (s *DispatchServiceServer) ReportResult(ctx context.Context, in *schedulev1.ReportResultRequest) (*schedulev1.ReportResultResponse, error) {
 	l := dispatchservicelogic.NewReportResultLogic(ctx, s.svcCtx)
 	return l.ReportResult(in)
 }

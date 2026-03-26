@@ -6,7 +6,7 @@ import (
 
 	"github.com/Humphrey-He/star-flow-scheduler/apps/executor/rpc/internal/model"
 	"github.com/Humphrey-He/star-flow-scheduler/apps/executor/rpc/internal/receiver"
-	schedulerv1_schedulev1 "github.com/Humphrey-He/star-flow-scheduler/proto/pb/github.com/Humphrey-He/star-flow-scheduler/proto/schedulerv1"
+	schedulev1 "github.com/Humphrey-He/star-flow-scheduler/proto/pb/github.com/Humphrey-He/star-flow-scheduler/proto/schedulerv1"
 )
 
 type Service struct {
@@ -17,7 +17,7 @@ func NewService(receiver *receiver.Receiver) *Service {
 	return &Service{receiver: receiver}
 }
 
-func (s *Service) DispatchJob(ctx context.Context, in *schedulerv1_schedulev1.DispatchJobRequest) error {
+func (s *Service) DispatchJob(ctx context.Context, in *schedulev1.DispatchJobRequest) error {
 	if in == nil {
 		return fmt.Errorf("request is nil")
 	}

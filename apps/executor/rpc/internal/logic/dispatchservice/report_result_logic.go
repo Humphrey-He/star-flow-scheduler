@@ -5,7 +5,7 @@ import (
 	"errors"
 
 	"github.com/Humphrey-He/star-flow-scheduler/apps/executor/rpc/internal/svc"
-	schedulerv1_schedulev1 "github.com/Humphrey-He/star-flow-scheduler/proto/pb/github.com/Humphrey-He/star-flow-scheduler/proto/schedulerv1"
+	schedulev1 "github.com/Humphrey-He/star-flow-scheduler/proto/pb/github.com/Humphrey-He/star-flow-scheduler/proto/schedulerv1"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )
@@ -24,6 +24,6 @@ func NewReportResultLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Repo
 	}
 }
 
-func (l *ReportResultLogic) ReportResult(in *schedulerv1_schedulev1.ReportResultRequest) (*schedulerv1_schedulev1.ReportResultResponse, error) {
+func (l *ReportResultLogic) ReportResult(in *schedulev1.ReportResultRequest) (*schedulev1.ReportResultResponse, error) {
 	return nil, errors.New("report_result is handled by scheduler rpc")
 }

@@ -5,7 +5,7 @@ import (
 
 	"github.com/Humphrey-He/star-flow-scheduler/apps/scheduler/rpc/internal/state"
 	"github.com/Humphrey-He/star-flow-scheduler/apps/scheduler/rpc/internal/svc"
-	schedulerv1_schedulev1 "github.com/Humphrey-He/star-flow-scheduler/proto/pb/github.com/Humphrey-He/star-flow-scheduler/proto/schedulerv1"
+	schedulev1 "github.com/Humphrey-He/star-flow-scheduler/proto/pb/github.com/Humphrey-He/star-flow-scheduler/proto/schedulerv1"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )
@@ -24,7 +24,7 @@ func NewCreateInstanceLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Cr
 	}
 }
 
-func (l *CreateInstanceLogic) CreateInstance(in *schedulerv1_schedulev1.CreateInstanceRequest) (*schedulerv1_schedulev1.CreateInstanceResponse, error) {
+func (l *CreateInstanceLogic) CreateInstance(in *schedulev1.CreateInstanceRequest) (*schedulev1.CreateInstanceResponse, error) {
 	if in == nil {
 		return nil, nil
 	}
@@ -40,13 +40,13 @@ func (l *CreateInstanceLogic) CreateInstance(in *schedulerv1_schedulev1.CreateIn
 		return nil, err
 	}
 
-	return &schedulerv1_schedulev1.CreateInstanceResponse{
+	return &schedulev1.CreateInstanceResponse{
 		InstanceNo: instance.InstanceNo,
 		Status:     mapStatus(state.StatusPending),
 	}, nil
 }
 
-func payloadString(payload *schedulerv1_schedulev1.JobPayload) *string {
+func payloadString(payload *schedulev1.JobPayload) *string {
 	if payload == nil || len(payload.Raw) == 0 {
 		return nil
 	}
@@ -54,25 +54,25 @@ func payloadString(payload *schedulerv1_schedulev1.JobPayload) *string {
 	return &s
 }
 
-func mapStatus(status state.InstanceStatus) schedulerv1_schedulev1.InstanceStatus {
+func mapStatus(status state.InstanceStatus) schedulev1.InstanceStatus {
 	switch status {
 	case state.StatusPending:
-		return schedulerv1_schedulev1.InstanceStatus_INSTANCE_STATUS_PENDING
+		return schedulev1.InstanceStatus_INSTANCE_STATUS_PENDING
 	case state.StatusDispatched:
-		return schedulerv1_schedulev1.InstanceStatus_INSTANCE_STATUS_DISPATCHED
+		return schedulev1.InstanceStatus_INSTANCE_STATUS_DISPATCHED
 	case state.StatusRunning:
-		return schedulerv1_schedulev1.InstanceStatus_INSTANCE_STATUS_RUNNING
+		return schedulev1.InstanceStatus_INSTANCE_STATUS_RUNNING
 	case state.StatusSuccess:
-		return schedulerv1_schedulev1.InstanceStatus_INSTANCE_STATUS_SUCCESS
+		return schedulev1.InstanceStatus_INSTANCE_STATUS_SUCCESS
 	case state.StatusFailed:
-		return schedulerv1_schedulev1.InstanceStatus_INSTANCE_STATUS_FAILED
+		return schedulev1.InstanceStatus_INSTANCE_STATUS_FAILED
 	case state.StatusRetryWait:
-		return schedulerv1_schedulev1.InstanceStatus_INSTANCE_STATUS_RETRY_WAIT
+		return schedulev1.InstanceStatus_INSTANCE_STATUS_RETRY_WAIT
 	case state.StatusDead:
-		return schedulerv1_schedulev1.InstanceStatus_INSTANCE_STATUS_DEAD
+		return schedulev1.InstanceStatus_INSTANCE_STATUS_DEAD
 	case state.StatusCanceled:
-		return schedulerv1_schedulev1.InstanceStatus_INSTANCE_STATUS_CANCELED
+		return schedulev1.InstanceStatus_INSTANCE_STATUS_CANCELED
 	default:
-		return schedulerv1_schedulev1.InstanceStatus_INSTANCE_STATUS_UNSPECIFIED
+		return schedulev1.InstanceStatus_INSTANCE_STATUS_UNSPECIFIED
 	}
 }
