@@ -7,6 +7,7 @@ import (
 	"github.com/Humphrey-He/star-flow-scheduler/apps/scheduler/rpc/internal/config"
 	dispatchserviceServer "github.com/Humphrey-He/star-flow-scheduler/apps/scheduler/rpc/internal/server/dispatchservice"
 	executorregistryserviceServer "github.com/Humphrey-He/star-flow-scheduler/apps/scheduler/rpc/internal/server/executorregistryservice"
+	schedulerinternalserviceServer "github.com/Humphrey-He/star-flow-scheduler/apps/scheduler/rpc/internal/server/schedulerinternalservice"
 	"github.com/Humphrey-He/star-flow-scheduler/apps/scheduler/rpc/internal/svc"
 	"github.com/Humphrey-He/star-flow-scheduler/proto/pb/github.com/Humphrey-He/star-flow-scheduler/proto/schedulerv1"
 
@@ -29,6 +30,7 @@ func main() {
 	s := zrpc.MustNewServer(c.RpcServerConf, func(grpcServer *grpc.Server) {
 		schedulerv1_schedulev1.RegisterExecutorRegistryServiceServer(grpcServer, executorregistryserviceServer.NewExecutorRegistryServiceServer(ctx))
 		schedulerv1_schedulev1.RegisterDispatchServiceServer(grpcServer, dispatchserviceServer.NewDispatchServiceServer(ctx))
+		schedulerv1_schedulev1.RegisterSchedulerInternalServiceServer(grpcServer, schedulerinternalserviceServer.NewSchedulerInternalServiceServer(ctx))
 
 		if c.Mode == service.DevMode || c.Mode == service.TestMode {
 			reflection.Register(grpcServer)
