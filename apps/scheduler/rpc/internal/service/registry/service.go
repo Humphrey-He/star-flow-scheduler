@@ -5,15 +5,15 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Humphrey-He/star-flow-scheduler/apps/scheduler/rpc/internal/repo"
-	"github.com/Humphrey-He/star-flow-scheduler/pkg/repo"
+	rpcrepo "github.com/Humphrey-He/star-flow-scheduler/apps/scheduler/rpc/internal/repo"
+	pkgrepo "github.com/Humphrey-He/star-flow-scheduler/pkg/repo"
 )
 
 type Service struct {
-	executors *repo.ExecutorRepository
+	executors *rpcrepo.ExecutorRepository
 }
 
-func NewService(executors *repo.ExecutorRepository) *Service {
+func NewService(executors *rpcrepo.ExecutorRepository) *Service {
 	return &Service{executors: executors}
 }
 
@@ -23,7 +23,7 @@ func (s *Service) Register(ctx context.Context, req RegisterRequest) (int64, err
 		tags = strings.Join(req.Tags, ",")
 	}
 
-	upsert := repo.ExecutorUpsert{
+	upsert := pkgrepo.ExecutorUpsert{
 		ExecutorCode:  req.ExecutorCode,
 		Host:          req.Host,
 		IP:            req.IP,
@@ -42,7 +42,7 @@ func (s *Service) Register(ctx context.Context, req RegisterRequest) (int64, err
 		return 0, err
 	}
 
-	return exec.ID, nil
+	return int64(exec.ID), nil
 }
 
 func (s *Service) Heartbeat(ctx context.Context, executorCode string, currentLoad int) error {
