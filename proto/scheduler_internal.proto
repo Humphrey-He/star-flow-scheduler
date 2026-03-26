@@ -1,0 +1,32 @@
+syntax = "proto3";
+
+package scheduler.v1;
+
+option go_package = "github.com/Humphrey-He/star-flow-scheduler/proto/schedulerv1;schedulev1";
+
+import "common.proto";
+
+service SchedulerInternalService {
+  rpc CreateInstance(CreateInstanceRequest) returns (CreateInstanceResponse);
+  rpc DispatchInstance(DispatchInstanceRequest) returns (DispatchInstanceResponse);
+}
+
+message CreateInstanceRequest {
+  string job_code = 1;
+  string trigger_type = 2;
+  JobPayload payload = 3;
+}
+
+message CreateInstanceResponse {
+  string instance_no = 1;
+  InstanceStatus status = 2;
+}
+
+message DispatchInstanceRequest {
+  string instance_no = 1;
+}
+
+message DispatchInstanceResponse {
+  bool dispatched = 1;
+  string executor_code = 2;
+}
