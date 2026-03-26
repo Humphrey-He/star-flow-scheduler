@@ -4,6 +4,8 @@
 *.exe
 *.test
 *.out
+.gocache/
+.gomodcache/
 
 # IDE
 .idea/
