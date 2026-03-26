@@ -12,6 +12,7 @@ import (
 	"github.com/Humphrey-He/star-flow-scheduler/apps/scheduler/rpc/internal/route"
 	"github.com/Humphrey-He/star-flow-scheduler/apps/scheduler/rpc/internal/state"
 	"github.com/Humphrey-He/star-flow-scheduler/pkg/ent"
+	"github.com/Humphrey-He/star-flow-scheduler/pkg/metricsx"
 	pkgrepo "github.com/Humphrey-He/star-flow-scheduler/pkg/repo"
 	"github.com/Humphrey-He/star-flow-scheduler/pkg/redisx"
 	schedulev1 "github.com/Humphrey-He/star-flow-scheduler/proto/pb/github.com/Humphrey-He/star-flow-scheduler/proto/schedulerv1"
@@ -168,9 +169,15 @@ func toExecutorNodes(ctx context.Context, execs []*ent.Executor, cache redisx.He
 		if cache != nil {
 			if hb, err := cache.Get(ctx, exec.ExecutorCode); err == nil {
 				currentLoad = int32(hb.CurrentLoad)
+				metricsx.Inc("route_cache_hit_total")
 			} else if !errors.Is(err, redisx.ErrNotFound) {
 				// ignore cache errors to keep dispatch safe
+				metricsx.Inc("route_cache_error_total")
+			} else {
+				metricsx.Inc("route_cache_miss_total")
 			}
+		} else {
+			metricsx.Inc("route_cache_disabled_total")
 		}
 		nodes = append(nodes, route.ExecutorNode{
 			ID:           int64(exec.ID),
