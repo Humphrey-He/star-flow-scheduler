@@ -1,6 +1,3 @@
-//go:build entgen
-// +build entgen
-
 package repo
 
 import (
