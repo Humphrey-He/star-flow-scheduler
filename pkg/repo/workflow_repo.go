@@ -49,3 +49,12 @@ func (r *WorkflowRepository) List(ctx context.Context, status string, limit int)
 	}
 	return query.Order(ent.Desc(workflowdefinition.FieldID)).Limit(limit).All(ctx)
 }
+
+func (r *WorkflowRepository) UpdateByID(ctx context.Context, id int64, workflowName string, description *string) (*ent.WorkflowDefinition, error) {
+	update := r.client.WorkflowDefinition.UpdateOneID(id).
+		SetWorkflowName(workflowName)
+	if description != nil {
+		update.SetDescription(*description)
+	}
+	return update.Save(ctx)
+}
