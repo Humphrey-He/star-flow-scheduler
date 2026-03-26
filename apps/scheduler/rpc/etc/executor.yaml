@@ -22,3 +22,5 @@ Dispatcher:
   PopTimeoutMs: 1000
   IdleSleepMs: 300
   RequeueMs: 1000
+Registry:
+  HeartbeatCacheTtlMs: 15000

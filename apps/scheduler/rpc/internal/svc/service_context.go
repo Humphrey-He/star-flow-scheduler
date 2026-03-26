@@ -32,6 +32,7 @@ type ServiceContext struct {
 	Redis        *redis.Client
 	DelayScanner *scanner.DelayScanner
 	Dispatcher   *dispatch.ReadyDispatcher
+	Heartbeat    redisx.HeartbeatCache
 	cancel       context.CancelFunc
 	wg           sync.WaitGroup
 }
@@ -53,10 +54,12 @@ func NewServiceContext(c config.Config) *ServiceContext {
 	var delayQueue redisx.DelayQueue
 	var readyQueue redisx.ReadyQueue
 	var locker redisx.Locker
+	var heartbeatCache redisx.HeartbeatCache
 	if redisClient != nil {
 		delayQueue = redisx.NewDelayQueue(redisClient)
 		readyQueue = redisx.NewReadyQueue(redisClient)
 		locker = redisx.NewLocker(redisClient)
+		heartbeatCache = redisx.NewHeartbeatCache(redisClient)
 	}
 
 	dispatchSvc := dispatch.NewService(jobRepo, instanceRepo, executorRepo, nil)
@@ -68,10 +71,11 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		ExecutorRepo: executorRepo,
 		InstanceRepo: instanceRepo,
 		JobRepo:      jobRepo,
-		RegistrySvc:  registry.NewService(executorRepo),
+		RegistrySvc:  registry.NewService(executorRepo, heartbeatCache, time.Duration(c.Registry.HeartbeatCacheTtlMs)*time.Millisecond),
 		DispatchSvc:  dispatchSvc,
 		InstanceSvc:  instance.NewService(instanceRepo),
 		Redis:        redisClient,
+		Heartbeat:    heartbeatCache,
 		DelayScanner: scanner.NewDelayScanner(scanner.Config{
 			TickInterval: time.Duration(c.Scanner.TickIntervalMs) * time.Millisecond,
 			BatchSize:    c.Scanner.BatchSize,

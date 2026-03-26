@@ -11,6 +11,7 @@ type Config struct {
 	Redis       redisx.Config `json:",optional"`
 	Scanner     ScannerConf   `json:",optional"`
 	Dispatcher  DispatcherConf `json:",optional"`
+	Registry    RegistryConf  `json:",optional"`
 }
 
 type ScannerConf struct {
@@ -24,4 +25,8 @@ type DispatcherConf struct {
 	PopTimeoutMs int64 `json:",optional"`
 	IdleSleepMs  int64 `json:",optional"`
 	RequeueMs    int64 `json:",optional"`
+}
+
+type RegistryConf struct {
+	HeartbeatCacheTtlMs int64 `json:",optional"`
 }
