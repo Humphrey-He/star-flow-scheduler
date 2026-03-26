@@ -14,9 +14,16 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/dialect"
 	"entgo.io/ent/dialect/sql"
+	"github.com/Humphrey-He/star-flow-scheduler/pkg/ent/deadletter"
 	"github.com/Humphrey-He/star-flow-scheduler/pkg/ent/executor"
 	"github.com/Humphrey-He/star-flow-scheduler/pkg/ent/jobdefinition"
+	"github.com/Humphrey-He/star-flow-scheduler/pkg/ent/jobexecutionlog"
 	"github.com/Humphrey-He/star-flow-scheduler/pkg/ent/jobinstance"
+	"github.com/Humphrey-He/star-flow-scheduler/pkg/ent/jobshard"
+	"github.com/Humphrey-He/star-flow-scheduler/pkg/ent/workflowdefinition"
+	"github.com/Humphrey-He/star-flow-scheduler/pkg/ent/workflowinstance"
+	"github.com/Humphrey-He/star-flow-scheduler/pkg/ent/workflownode"
+	"github.com/Humphrey-He/star-flow-scheduler/pkg/ent/workflownodeinstance"
 )
 
 // Client is the client that holds all ent builders.
@@ -24,12 +31,26 @@ type Client struct {
 	config
 	// Schema is the client for creating, migrating and dropping schema.
 	Schema *migrate.Schema
+	// DeadLetter is the client for interacting with the DeadLetter builders.
+	DeadLetter *DeadLetterClient
 	// Executor is the client for interacting with the Executor builders.
 	Executor *ExecutorClient
 	// JobDefinition is the client for interacting with the JobDefinition builders.
 	JobDefinition *JobDefinitionClient
+	// JobExecutionLog is the client for interacting with the JobExecutionLog builders.
+	JobExecutionLog *JobExecutionLogClient
 	// JobInstance is the client for interacting with the JobInstance builders.
 	JobInstance *JobInstanceClient
+	// JobShard is the client for interacting with the JobShard builders.
+	JobShard *JobShardClient
+	// WorkflowDefinition is the client for interacting with the WorkflowDefinition builders.
+	WorkflowDefinition *WorkflowDefinitionClient
+	// WorkflowInstance is the client for interacting with the WorkflowInstance builders.
+	WorkflowInstance *WorkflowInstanceClient
+	// WorkflowNode is the client for interacting with the WorkflowNode builders.
+	WorkflowNode *WorkflowNodeClient
+	// WorkflowNodeInstance is the client for interacting with the WorkflowNodeInstance builders.
+	WorkflowNodeInstance *WorkflowNodeInstanceClient
 }
 
 // NewClient creates a new client configured with the given options.
@@ -41,9 +62,16 @@ func NewClient(opts ...Option) *Client {
 
 func (c *Client) init() {
 	c.Schema = migrate.NewSchema(c.driver)
+	c.DeadLetter = NewDeadLetterClient(c.config)
 	c.Executor = NewExecutorClient(c.config)
 	c.JobDefinition = NewJobDefinitionClient(c.config)
+	c.JobExecutionLog = NewJobExecutionLogClient(c.config)
 	c.JobInstance = NewJobInstanceClient(c.config)
+	c.JobShard = NewJobShardClient(c.config)
+	c.WorkflowDefinition = NewWorkflowDefinitionClient(c.config)
+	c.WorkflowInstance = NewWorkflowInstanceClient(c.config)
+	c.WorkflowNode = NewWorkflowNodeClient(c.config)
+	c.WorkflowNodeInstance = NewWorkflowNodeInstanceClient(c.config)
 }
 
 type (
@@ -134,11 +162,18 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 	cfg := c.config
 	cfg.driver = tx
 	return &Tx{
-		ctx:           ctx,
-		config:        cfg,
-		Executor:      NewExecutorClient(cfg),
-		JobDefinition: NewJobDefinitionClient(cfg),
-		JobInstance:   NewJobInstanceClient(cfg),
+		ctx:                  ctx,
+		config:               cfg,
+		DeadLetter:           NewDeadLetterClient(cfg),
+		Executor:             NewExecutorClient(cfg),
+		JobDefinition:        NewJobDefinitionClient(cfg),
+		JobExecutionLog:      NewJobExecutionLogClient(cfg),
+		JobInstance:          NewJobInstanceClient(cfg),
+		JobShard:             NewJobShardClient(cfg),
+		WorkflowDefinition:   NewWorkflowDefinitionClient(cfg),
+		WorkflowInstance:     NewWorkflowInstanceClient(cfg),
+		WorkflowNode:         NewWorkflowNodeClient(cfg),
+		WorkflowNodeInstance: NewWorkflowNodeInstanceClient(cfg),
 	}, nil
 }
 
@@ -156,18 +191,25 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 	cfg := c.config
 	cfg.driver = &txDriver{tx: tx, drv: c.driver}
 	return &Tx{
-		ctx:           ctx,
-		config:        cfg,
-		Executor:      NewExecutorClient(cfg),
-		JobDefinition: NewJobDefinitionClient(cfg),
-		JobInstance:   NewJobInstanceClient(cfg),
+		ctx:                  ctx,
+		config:               cfg,
+		DeadLetter:           NewDeadLetterClient(cfg),
+		Executor:             NewExecutorClient(cfg),
+		JobDefinition:        NewJobDefinitionClient(cfg),
+		JobExecutionLog:      NewJobExecutionLogClient(cfg),
+		JobInstance:          NewJobInstanceClient(cfg),
+		JobShard:             NewJobShardClient(cfg),
+		WorkflowDefinition:   NewWorkflowDefinitionClient(cfg),
+		WorkflowInstance:     NewWorkflowInstanceClient(cfg),
+		WorkflowNode:         NewWorkflowNodeClient(cfg),
+		WorkflowNodeInstance: NewWorkflowNodeInstanceClient(cfg),
 	}, nil
 }
 
 // Debug returns a new debug-client. It's used to get verbose logging on specific operations.
 //
 //	client.Debug().
-//		Executor.
+//		DeadLetter.
 //		Query().
 //		Count(ctx)
 func (c *Client) Debug() *Client {
@@ -189,30 +231,185 @@ func (c *Client) Close() error {
 // Use adds the mutation hooks to all the entity clients.
 // In order to add hooks to a specific client, call: `client.Node.Use(...)`.
 func (c *Client) Use(hooks ...Hook) {
-	c.Executor.Use(hooks...)
-	c.JobDefinition.Use(hooks...)
-	c.JobInstance.Use(hooks...)
+	for _, n := range []interface{ Use(...Hook) }{
+		c.DeadLetter, c.Executor, c.JobDefinition, c.JobExecutionLog, c.JobInstance,
+		c.JobShard, c.WorkflowDefinition, c.WorkflowInstance, c.WorkflowNode,
+		c.WorkflowNodeInstance,
+	} {
+		n.Use(hooks...)
+	}
 }
 
 // Intercept adds the query interceptors to all the entity clients.
 // In order to add interceptors to a specific client, call: `client.Node.Intercept(...)`.
 func (c *Client) Intercept(interceptors ...Interceptor) {
-	c.Executor.Intercept(interceptors...)
-	c.JobDefinition.Intercept(interceptors...)
-	c.JobInstance.Intercept(interceptors...)
+	for _, n := range []interface{ Intercept(...Interceptor) }{
+		c.DeadLetter, c.Executor, c.JobDefinition, c.JobExecutionLog, c.JobInstance,
+		c.JobShard, c.WorkflowDefinition, c.WorkflowInstance, c.WorkflowNode,
+		c.WorkflowNodeInstance,
+	} {
+		n.Intercept(interceptors...)
+	}
 }
 
 // Mutate implements the ent.Mutator interface.
 func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 	switch m := m.(type) {
+	case *DeadLetterMutation:
+		return c.DeadLetter.mutate(ctx, m)
 	case *ExecutorMutation:
 		return c.Executor.mutate(ctx, m)
 	case *JobDefinitionMutation:
 		return c.JobDefinition.mutate(ctx, m)
+	case *JobExecutionLogMutation:
+		return c.JobExecutionLog.mutate(ctx, m)
 	case *JobInstanceMutation:
 		return c.JobInstance.mutate(ctx, m)
+	case *JobShardMutation:
+		return c.JobShard.mutate(ctx, m)
+	case *WorkflowDefinitionMutation:
+		return c.WorkflowDefinition.mutate(ctx, m)
+	case *WorkflowInstanceMutation:
+		return c.WorkflowInstance.mutate(ctx, m)
+	case *WorkflowNodeMutation:
+		return c.WorkflowNode.mutate(ctx, m)
+	case *WorkflowNodeInstanceMutation:
+		return c.WorkflowNodeInstance.mutate(ctx, m)
 	default:
 		return nil, fmt.Errorf("ent: unknown mutation type %T", m)
+	}
+}
+
+// DeadLetterClient is a client for the DeadLetter schema.
+type DeadLetterClient struct {
+	config
+}
+
+// NewDeadLetterClient returns a client for the DeadLetter from the given config.
+func NewDeadLetterClient(c config) *DeadLetterClient {
+	return &DeadLetterClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `deadletter.Hooks(f(g(h())))`.
+func (c *DeadLetterClient) Use(hooks ...Hook) {
+	c.hooks.DeadLetter = append(c.hooks.DeadLetter, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `deadletter.Intercept(f(g(h())))`.
+func (c *DeadLetterClient) Intercept(interceptors ...Interceptor) {
+	c.inters.DeadLetter = append(c.inters.DeadLetter, interceptors...)
+}
+
+// Create returns a builder for creating a DeadLetter entity.
+func (c *DeadLetterClient) Create() *DeadLetterCreate {
+	mutation := newDeadLetterMutation(c.config, OpCreate)
+	return &DeadLetterCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of DeadLetter entities.
+func (c *DeadLetterClient) CreateBulk(builders ...*DeadLetterCreate) *DeadLetterCreateBulk {
+	return &DeadLetterCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *DeadLetterClient) MapCreateBulk(slice any, setFunc func(*DeadLetterCreate, int)) *DeadLetterCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &DeadLetterCreateBulk{err: fmt.Errorf("calling to DeadLetterClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*DeadLetterCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &DeadLetterCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for DeadLetter.
+func (c *DeadLetterClient) Update() *DeadLetterUpdate {
+	mutation := newDeadLetterMutation(c.config, OpUpdate)
+	return &DeadLetterUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *DeadLetterClient) UpdateOne(dl *DeadLetter) *DeadLetterUpdateOne {
+	mutation := newDeadLetterMutation(c.config, OpUpdateOne, withDeadLetter(dl))
+	return &DeadLetterUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *DeadLetterClient) UpdateOneID(id int) *DeadLetterUpdateOne {
+	mutation := newDeadLetterMutation(c.config, OpUpdateOne, withDeadLetterID(id))
+	return &DeadLetterUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for DeadLetter.
+func (c *DeadLetterClient) Delete() *DeadLetterDelete {
+	mutation := newDeadLetterMutation(c.config, OpDelete)
+	return &DeadLetterDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *DeadLetterClient) DeleteOne(dl *DeadLetter) *DeadLetterDeleteOne {
+	return c.DeleteOneID(dl.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *DeadLetterClient) DeleteOneID(id int) *DeadLetterDeleteOne {
+	builder := c.Delete().Where(deadletter.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &DeadLetterDeleteOne{builder}
+}
+
+// Query returns a query builder for DeadLetter.
+func (c *DeadLetterClient) Query() *DeadLetterQuery {
+	return &DeadLetterQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeDeadLetter},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a DeadLetter entity by its id.
+func (c *DeadLetterClient) Get(ctx context.Context, id int) (*DeadLetter, error) {
+	return c.Query().Where(deadletter.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *DeadLetterClient) GetX(ctx context.Context, id int) *DeadLetter {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *DeadLetterClient) Hooks() []Hook {
+	return c.hooks.DeadLetter
+}
+
+// Interceptors returns the client interceptors.
+func (c *DeadLetterClient) Interceptors() []Interceptor {
+	return c.inters.DeadLetter
+}
+
+func (c *DeadLetterClient) mutate(ctx context.Context, m *DeadLetterMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&DeadLetterCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&DeadLetterUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&DeadLetterUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&DeadLetterDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown DeadLetter mutation op: %q", m.Op())
 	}
 }
 
@@ -482,6 +679,139 @@ func (c *JobDefinitionClient) mutate(ctx context.Context, m *JobDefinitionMutati
 	}
 }
 
+// JobExecutionLogClient is a client for the JobExecutionLog schema.
+type JobExecutionLogClient struct {
+	config
+}
+
+// NewJobExecutionLogClient returns a client for the JobExecutionLog from the given config.
+func NewJobExecutionLogClient(c config) *JobExecutionLogClient {
+	return &JobExecutionLogClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `jobexecutionlog.Hooks(f(g(h())))`.
+func (c *JobExecutionLogClient) Use(hooks ...Hook) {
+	c.hooks.JobExecutionLog = append(c.hooks.JobExecutionLog, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `jobexecutionlog.Intercept(f(g(h())))`.
+func (c *JobExecutionLogClient) Intercept(interceptors ...Interceptor) {
+	c.inters.JobExecutionLog = append(c.inters.JobExecutionLog, interceptors...)
+}
+
+// Create returns a builder for creating a JobExecutionLog entity.
+func (c *JobExecutionLogClient) Create() *JobExecutionLogCreate {
+	mutation := newJobExecutionLogMutation(c.config, OpCreate)
+	return &JobExecutionLogCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of JobExecutionLog entities.
+func (c *JobExecutionLogClient) CreateBulk(builders ...*JobExecutionLogCreate) *JobExecutionLogCreateBulk {
+	return &JobExecutionLogCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *JobExecutionLogClient) MapCreateBulk(slice any, setFunc func(*JobExecutionLogCreate, int)) *JobExecutionLogCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &JobExecutionLogCreateBulk{err: fmt.Errorf("calling to JobExecutionLogClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*JobExecutionLogCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &JobExecutionLogCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for JobExecutionLog.
+func (c *JobExecutionLogClient) Update() *JobExecutionLogUpdate {
+	mutation := newJobExecutionLogMutation(c.config, OpUpdate)
+	return &JobExecutionLogUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *JobExecutionLogClient) UpdateOne(jel *JobExecutionLog) *JobExecutionLogUpdateOne {
+	mutation := newJobExecutionLogMutation(c.config, OpUpdateOne, withJobExecutionLog(jel))
+	return &JobExecutionLogUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *JobExecutionLogClient) UpdateOneID(id int) *JobExecutionLogUpdateOne {
+	mutation := newJobExecutionLogMutation(c.config, OpUpdateOne, withJobExecutionLogID(id))
+	return &JobExecutionLogUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for JobExecutionLog.
+func (c *JobExecutionLogClient) Delete() *JobExecutionLogDelete {
+	mutation := newJobExecutionLogMutation(c.config, OpDelete)
+	return &JobExecutionLogDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *JobExecutionLogClient) DeleteOne(jel *JobExecutionLog) *JobExecutionLogDeleteOne {
+	return c.DeleteOneID(jel.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *JobExecutionLogClient) DeleteOneID(id int) *JobExecutionLogDeleteOne {
+	builder := c.Delete().Where(jobexecutionlog.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &JobExecutionLogDeleteOne{builder}
+}
+
+// Query returns a query builder for JobExecutionLog.
+func (c *JobExecutionLogClient) Query() *JobExecutionLogQuery {
+	return &JobExecutionLogQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeJobExecutionLog},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a JobExecutionLog entity by its id.
+func (c *JobExecutionLogClient) Get(ctx context.Context, id int) (*JobExecutionLog, error) {
+	return c.Query().Where(jobexecutionlog.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *JobExecutionLogClient) GetX(ctx context.Context, id int) *JobExecutionLog {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *JobExecutionLogClient) Hooks() []Hook {
+	return c.hooks.JobExecutionLog
+}
+
+// Interceptors returns the client interceptors.
+func (c *JobExecutionLogClient) Interceptors() []Interceptor {
+	return c.inters.JobExecutionLog
+}
+
+func (c *JobExecutionLogClient) mutate(ctx context.Context, m *JobExecutionLogMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&JobExecutionLogCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&JobExecutionLogUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&JobExecutionLogUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&JobExecutionLogDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown JobExecutionLog mutation op: %q", m.Op())
+	}
+}
+
 // JobInstanceClient is a client for the JobInstance schema.
 type JobInstanceClient struct {
 	config
@@ -615,12 +945,681 @@ func (c *JobInstanceClient) mutate(ctx context.Context, m *JobInstanceMutation) 
 	}
 }
 
+// JobShardClient is a client for the JobShard schema.
+type JobShardClient struct {
+	config
+}
+
+// NewJobShardClient returns a client for the JobShard from the given config.
+func NewJobShardClient(c config) *JobShardClient {
+	return &JobShardClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `jobshard.Hooks(f(g(h())))`.
+func (c *JobShardClient) Use(hooks ...Hook) {
+	c.hooks.JobShard = append(c.hooks.JobShard, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `jobshard.Intercept(f(g(h())))`.
+func (c *JobShardClient) Intercept(interceptors ...Interceptor) {
+	c.inters.JobShard = append(c.inters.JobShard, interceptors...)
+}
+
+// Create returns a builder for creating a JobShard entity.
+func (c *JobShardClient) Create() *JobShardCreate {
+	mutation := newJobShardMutation(c.config, OpCreate)
+	return &JobShardCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of JobShard entities.
+func (c *JobShardClient) CreateBulk(builders ...*JobShardCreate) *JobShardCreateBulk {
+	return &JobShardCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *JobShardClient) MapCreateBulk(slice any, setFunc func(*JobShardCreate, int)) *JobShardCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &JobShardCreateBulk{err: fmt.Errorf("calling to JobShardClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*JobShardCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &JobShardCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for JobShard.
+func (c *JobShardClient) Update() *JobShardUpdate {
+	mutation := newJobShardMutation(c.config, OpUpdate)
+	return &JobShardUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *JobShardClient) UpdateOne(js *JobShard) *JobShardUpdateOne {
+	mutation := newJobShardMutation(c.config, OpUpdateOne, withJobShard(js))
+	return &JobShardUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *JobShardClient) UpdateOneID(id int) *JobShardUpdateOne {
+	mutation := newJobShardMutation(c.config, OpUpdateOne, withJobShardID(id))
+	return &JobShardUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for JobShard.
+func (c *JobShardClient) Delete() *JobShardDelete {
+	mutation := newJobShardMutation(c.config, OpDelete)
+	return &JobShardDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *JobShardClient) DeleteOne(js *JobShard) *JobShardDeleteOne {
+	return c.DeleteOneID(js.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *JobShardClient) DeleteOneID(id int) *JobShardDeleteOne {
+	builder := c.Delete().Where(jobshard.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &JobShardDeleteOne{builder}
+}
+
+// Query returns a query builder for JobShard.
+func (c *JobShardClient) Query() *JobShardQuery {
+	return &JobShardQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeJobShard},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a JobShard entity by its id.
+func (c *JobShardClient) Get(ctx context.Context, id int) (*JobShard, error) {
+	return c.Query().Where(jobshard.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *JobShardClient) GetX(ctx context.Context, id int) *JobShard {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *JobShardClient) Hooks() []Hook {
+	return c.hooks.JobShard
+}
+
+// Interceptors returns the client interceptors.
+func (c *JobShardClient) Interceptors() []Interceptor {
+	return c.inters.JobShard
+}
+
+func (c *JobShardClient) mutate(ctx context.Context, m *JobShardMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&JobShardCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&JobShardUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&JobShardUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&JobShardDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown JobShard mutation op: %q", m.Op())
+	}
+}
+
+// WorkflowDefinitionClient is a client for the WorkflowDefinition schema.
+type WorkflowDefinitionClient struct {
+	config
+}
+
+// NewWorkflowDefinitionClient returns a client for the WorkflowDefinition from the given config.
+func NewWorkflowDefinitionClient(c config) *WorkflowDefinitionClient {
+	return &WorkflowDefinitionClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `workflowdefinition.Hooks(f(g(h())))`.
+func (c *WorkflowDefinitionClient) Use(hooks ...Hook) {
+	c.hooks.WorkflowDefinition = append(c.hooks.WorkflowDefinition, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `workflowdefinition.Intercept(f(g(h())))`.
+func (c *WorkflowDefinitionClient) Intercept(interceptors ...Interceptor) {
+	c.inters.WorkflowDefinition = append(c.inters.WorkflowDefinition, interceptors...)
+}
+
+// Create returns a builder for creating a WorkflowDefinition entity.
+func (c *WorkflowDefinitionClient) Create() *WorkflowDefinitionCreate {
+	mutation := newWorkflowDefinitionMutation(c.config, OpCreate)
+	return &WorkflowDefinitionCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of WorkflowDefinition entities.
+func (c *WorkflowDefinitionClient) CreateBulk(builders ...*WorkflowDefinitionCreate) *WorkflowDefinitionCreateBulk {
+	return &WorkflowDefinitionCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *WorkflowDefinitionClient) MapCreateBulk(slice any, setFunc func(*WorkflowDefinitionCreate, int)) *WorkflowDefinitionCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &WorkflowDefinitionCreateBulk{err: fmt.Errorf("calling to WorkflowDefinitionClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*WorkflowDefinitionCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &WorkflowDefinitionCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for WorkflowDefinition.
+func (c *WorkflowDefinitionClient) Update() *WorkflowDefinitionUpdate {
+	mutation := newWorkflowDefinitionMutation(c.config, OpUpdate)
+	return &WorkflowDefinitionUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *WorkflowDefinitionClient) UpdateOne(wd *WorkflowDefinition) *WorkflowDefinitionUpdateOne {
+	mutation := newWorkflowDefinitionMutation(c.config, OpUpdateOne, withWorkflowDefinition(wd))
+	return &WorkflowDefinitionUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *WorkflowDefinitionClient) UpdateOneID(id int) *WorkflowDefinitionUpdateOne {
+	mutation := newWorkflowDefinitionMutation(c.config, OpUpdateOne, withWorkflowDefinitionID(id))
+	return &WorkflowDefinitionUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for WorkflowDefinition.
+func (c *WorkflowDefinitionClient) Delete() *WorkflowDefinitionDelete {
+	mutation := newWorkflowDefinitionMutation(c.config, OpDelete)
+	return &WorkflowDefinitionDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *WorkflowDefinitionClient) DeleteOne(wd *WorkflowDefinition) *WorkflowDefinitionDeleteOne {
+	return c.DeleteOneID(wd.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *WorkflowDefinitionClient) DeleteOneID(id int) *WorkflowDefinitionDeleteOne {
+	builder := c.Delete().Where(workflowdefinition.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &WorkflowDefinitionDeleteOne{builder}
+}
+
+// Query returns a query builder for WorkflowDefinition.
+func (c *WorkflowDefinitionClient) Query() *WorkflowDefinitionQuery {
+	return &WorkflowDefinitionQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeWorkflowDefinition},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a WorkflowDefinition entity by its id.
+func (c *WorkflowDefinitionClient) Get(ctx context.Context, id int) (*WorkflowDefinition, error) {
+	return c.Query().Where(workflowdefinition.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *WorkflowDefinitionClient) GetX(ctx context.Context, id int) *WorkflowDefinition {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *WorkflowDefinitionClient) Hooks() []Hook {
+	return c.hooks.WorkflowDefinition
+}
+
+// Interceptors returns the client interceptors.
+func (c *WorkflowDefinitionClient) Interceptors() []Interceptor {
+	return c.inters.WorkflowDefinition
+}
+
+func (c *WorkflowDefinitionClient) mutate(ctx context.Context, m *WorkflowDefinitionMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&WorkflowDefinitionCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&WorkflowDefinitionUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&WorkflowDefinitionUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&WorkflowDefinitionDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown WorkflowDefinition mutation op: %q", m.Op())
+	}
+}
+
+// WorkflowInstanceClient is a client for the WorkflowInstance schema.
+type WorkflowInstanceClient struct {
+	config
+}
+
+// NewWorkflowInstanceClient returns a client for the WorkflowInstance from the given config.
+func NewWorkflowInstanceClient(c config) *WorkflowInstanceClient {
+	return &WorkflowInstanceClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `workflowinstance.Hooks(f(g(h())))`.
+func (c *WorkflowInstanceClient) Use(hooks ...Hook) {
+	c.hooks.WorkflowInstance = append(c.hooks.WorkflowInstance, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `workflowinstance.Intercept(f(g(h())))`.
+func (c *WorkflowInstanceClient) Intercept(interceptors ...Interceptor) {
+	c.inters.WorkflowInstance = append(c.inters.WorkflowInstance, interceptors...)
+}
+
+// Create returns a builder for creating a WorkflowInstance entity.
+func (c *WorkflowInstanceClient) Create() *WorkflowInstanceCreate {
+	mutation := newWorkflowInstanceMutation(c.config, OpCreate)
+	return &WorkflowInstanceCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of WorkflowInstance entities.
+func (c *WorkflowInstanceClient) CreateBulk(builders ...*WorkflowInstanceCreate) *WorkflowInstanceCreateBulk {
+	return &WorkflowInstanceCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *WorkflowInstanceClient) MapCreateBulk(slice any, setFunc func(*WorkflowInstanceCreate, int)) *WorkflowInstanceCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &WorkflowInstanceCreateBulk{err: fmt.Errorf("calling to WorkflowInstanceClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*WorkflowInstanceCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &WorkflowInstanceCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for WorkflowInstance.
+func (c *WorkflowInstanceClient) Update() *WorkflowInstanceUpdate {
+	mutation := newWorkflowInstanceMutation(c.config, OpUpdate)
+	return &WorkflowInstanceUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *WorkflowInstanceClient) UpdateOne(wi *WorkflowInstance) *WorkflowInstanceUpdateOne {
+	mutation := newWorkflowInstanceMutation(c.config, OpUpdateOne, withWorkflowInstance(wi))
+	return &WorkflowInstanceUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *WorkflowInstanceClient) UpdateOneID(id int) *WorkflowInstanceUpdateOne {
+	mutation := newWorkflowInstanceMutation(c.config, OpUpdateOne, withWorkflowInstanceID(id))
+	return &WorkflowInstanceUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for WorkflowInstance.
+func (c *WorkflowInstanceClient) Delete() *WorkflowInstanceDelete {
+	mutation := newWorkflowInstanceMutation(c.config, OpDelete)
+	return &WorkflowInstanceDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *WorkflowInstanceClient) DeleteOne(wi *WorkflowInstance) *WorkflowInstanceDeleteOne {
+	return c.DeleteOneID(wi.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *WorkflowInstanceClient) DeleteOneID(id int) *WorkflowInstanceDeleteOne {
+	builder := c.Delete().Where(workflowinstance.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &WorkflowInstanceDeleteOne{builder}
+}
+
+// Query returns a query builder for WorkflowInstance.
+func (c *WorkflowInstanceClient) Query() *WorkflowInstanceQuery {
+	return &WorkflowInstanceQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeWorkflowInstance},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a WorkflowInstance entity by its id.
+func (c *WorkflowInstanceClient) Get(ctx context.Context, id int) (*WorkflowInstance, error) {
+	return c.Query().Where(workflowinstance.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *WorkflowInstanceClient) GetX(ctx context.Context, id int) *WorkflowInstance {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *WorkflowInstanceClient) Hooks() []Hook {
+	return c.hooks.WorkflowInstance
+}
+
+// Interceptors returns the client interceptors.
+func (c *WorkflowInstanceClient) Interceptors() []Interceptor {
+	return c.inters.WorkflowInstance
+}
+
+func (c *WorkflowInstanceClient) mutate(ctx context.Context, m *WorkflowInstanceMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&WorkflowInstanceCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&WorkflowInstanceUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&WorkflowInstanceUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&WorkflowInstanceDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown WorkflowInstance mutation op: %q", m.Op())
+	}
+}
+
+// WorkflowNodeClient is a client for the WorkflowNode schema.
+type WorkflowNodeClient struct {
+	config
+}
+
+// NewWorkflowNodeClient returns a client for the WorkflowNode from the given config.
+func NewWorkflowNodeClient(c config) *WorkflowNodeClient {
+	return &WorkflowNodeClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `workflownode.Hooks(f(g(h())))`.
+func (c *WorkflowNodeClient) Use(hooks ...Hook) {
+	c.hooks.WorkflowNode = append(c.hooks.WorkflowNode, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `workflownode.Intercept(f(g(h())))`.
+func (c *WorkflowNodeClient) Intercept(interceptors ...Interceptor) {
+	c.inters.WorkflowNode = append(c.inters.WorkflowNode, interceptors...)
+}
+
+// Create returns a builder for creating a WorkflowNode entity.
+func (c *WorkflowNodeClient) Create() *WorkflowNodeCreate {
+	mutation := newWorkflowNodeMutation(c.config, OpCreate)
+	return &WorkflowNodeCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of WorkflowNode entities.
+func (c *WorkflowNodeClient) CreateBulk(builders ...*WorkflowNodeCreate) *WorkflowNodeCreateBulk {
+	return &WorkflowNodeCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *WorkflowNodeClient) MapCreateBulk(slice any, setFunc func(*WorkflowNodeCreate, int)) *WorkflowNodeCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &WorkflowNodeCreateBulk{err: fmt.Errorf("calling to WorkflowNodeClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*WorkflowNodeCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &WorkflowNodeCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for WorkflowNode.
+func (c *WorkflowNodeClient) Update() *WorkflowNodeUpdate {
+	mutation := newWorkflowNodeMutation(c.config, OpUpdate)
+	return &WorkflowNodeUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *WorkflowNodeClient) UpdateOne(wn *WorkflowNode) *WorkflowNodeUpdateOne {
+	mutation := newWorkflowNodeMutation(c.config, OpUpdateOne, withWorkflowNode(wn))
+	return &WorkflowNodeUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *WorkflowNodeClient) UpdateOneID(id int) *WorkflowNodeUpdateOne {
+	mutation := newWorkflowNodeMutation(c.config, OpUpdateOne, withWorkflowNodeID(id))
+	return &WorkflowNodeUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for WorkflowNode.
+func (c *WorkflowNodeClient) Delete() *WorkflowNodeDelete {
+	mutation := newWorkflowNodeMutation(c.config, OpDelete)
+	return &WorkflowNodeDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *WorkflowNodeClient) DeleteOne(wn *WorkflowNode) *WorkflowNodeDeleteOne {
+	return c.DeleteOneID(wn.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *WorkflowNodeClient) DeleteOneID(id int) *WorkflowNodeDeleteOne {
+	builder := c.Delete().Where(workflownode.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &WorkflowNodeDeleteOne{builder}
+}
+
+// Query returns a query builder for WorkflowNode.
+func (c *WorkflowNodeClient) Query() *WorkflowNodeQuery {
+	return &WorkflowNodeQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeWorkflowNode},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a WorkflowNode entity by its id.
+func (c *WorkflowNodeClient) Get(ctx context.Context, id int) (*WorkflowNode, error) {
+	return c.Query().Where(workflownode.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *WorkflowNodeClient) GetX(ctx context.Context, id int) *WorkflowNode {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *WorkflowNodeClient) Hooks() []Hook {
+	return c.hooks.WorkflowNode
+}
+
+// Interceptors returns the client interceptors.
+func (c *WorkflowNodeClient) Interceptors() []Interceptor {
+	return c.inters.WorkflowNode
+}
+
+func (c *WorkflowNodeClient) mutate(ctx context.Context, m *WorkflowNodeMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&WorkflowNodeCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&WorkflowNodeUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&WorkflowNodeUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&WorkflowNodeDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown WorkflowNode mutation op: %q", m.Op())
+	}
+}
+
+// WorkflowNodeInstanceClient is a client for the WorkflowNodeInstance schema.
+type WorkflowNodeInstanceClient struct {
+	config
+}
+
+// NewWorkflowNodeInstanceClient returns a client for the WorkflowNodeInstance from the given config.
+func NewWorkflowNodeInstanceClient(c config) *WorkflowNodeInstanceClient {
+	return &WorkflowNodeInstanceClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `workflownodeinstance.Hooks(f(g(h())))`.
+func (c *WorkflowNodeInstanceClient) Use(hooks ...Hook) {
+	c.hooks.WorkflowNodeInstance = append(c.hooks.WorkflowNodeInstance, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `workflownodeinstance.Intercept(f(g(h())))`.
+func (c *WorkflowNodeInstanceClient) Intercept(interceptors ...Interceptor) {
+	c.inters.WorkflowNodeInstance = append(c.inters.WorkflowNodeInstance, interceptors...)
+}
+
+// Create returns a builder for creating a WorkflowNodeInstance entity.
+func (c *WorkflowNodeInstanceClient) Create() *WorkflowNodeInstanceCreate {
+	mutation := newWorkflowNodeInstanceMutation(c.config, OpCreate)
+	return &WorkflowNodeInstanceCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of WorkflowNodeInstance entities.
+func (c *WorkflowNodeInstanceClient) CreateBulk(builders ...*WorkflowNodeInstanceCreate) *WorkflowNodeInstanceCreateBulk {
+	return &WorkflowNodeInstanceCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *WorkflowNodeInstanceClient) MapCreateBulk(slice any, setFunc func(*WorkflowNodeInstanceCreate, int)) *WorkflowNodeInstanceCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &WorkflowNodeInstanceCreateBulk{err: fmt.Errorf("calling to WorkflowNodeInstanceClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*WorkflowNodeInstanceCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &WorkflowNodeInstanceCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for WorkflowNodeInstance.
+func (c *WorkflowNodeInstanceClient) Update() *WorkflowNodeInstanceUpdate {
+	mutation := newWorkflowNodeInstanceMutation(c.config, OpUpdate)
+	return &WorkflowNodeInstanceUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *WorkflowNodeInstanceClient) UpdateOne(wni *WorkflowNodeInstance) *WorkflowNodeInstanceUpdateOne {
+	mutation := newWorkflowNodeInstanceMutation(c.config, OpUpdateOne, withWorkflowNodeInstance(wni))
+	return &WorkflowNodeInstanceUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *WorkflowNodeInstanceClient) UpdateOneID(id int) *WorkflowNodeInstanceUpdateOne {
+	mutation := newWorkflowNodeInstanceMutation(c.config, OpUpdateOne, withWorkflowNodeInstanceID(id))
+	return &WorkflowNodeInstanceUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for WorkflowNodeInstance.
+func (c *WorkflowNodeInstanceClient) Delete() *WorkflowNodeInstanceDelete {
+	mutation := newWorkflowNodeInstanceMutation(c.config, OpDelete)
+	return &WorkflowNodeInstanceDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *WorkflowNodeInstanceClient) DeleteOne(wni *WorkflowNodeInstance) *WorkflowNodeInstanceDeleteOne {
+	return c.DeleteOneID(wni.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *WorkflowNodeInstanceClient) DeleteOneID(id int) *WorkflowNodeInstanceDeleteOne {
+	builder := c.Delete().Where(workflownodeinstance.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &WorkflowNodeInstanceDeleteOne{builder}
+}
+
+// Query returns a query builder for WorkflowNodeInstance.
+func (c *WorkflowNodeInstanceClient) Query() *WorkflowNodeInstanceQuery {
+	return &WorkflowNodeInstanceQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeWorkflowNodeInstance},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a WorkflowNodeInstance entity by its id.
+func (c *WorkflowNodeInstanceClient) Get(ctx context.Context, id int) (*WorkflowNodeInstance, error) {
+	return c.Query().Where(workflownodeinstance.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *WorkflowNodeInstanceClient) GetX(ctx context.Context, id int) *WorkflowNodeInstance {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *WorkflowNodeInstanceClient) Hooks() []Hook {
+	return c.hooks.WorkflowNodeInstance
+}
+
+// Interceptors returns the client interceptors.
+func (c *WorkflowNodeInstanceClient) Interceptors() []Interceptor {
+	return c.inters.WorkflowNodeInstance
+}
+
+func (c *WorkflowNodeInstanceClient) mutate(ctx context.Context, m *WorkflowNodeInstanceMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&WorkflowNodeInstanceCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&WorkflowNodeInstanceUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&WorkflowNodeInstanceUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&WorkflowNodeInstanceDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown WorkflowNodeInstance mutation op: %q", m.Op())
+	}
+}
+
 // hooks and interceptors per client, for fast access.
 type (
 	hooks struct {
-		Executor, JobDefinition, JobInstance []ent.Hook
+		DeadLetter, Executor, JobDefinition, JobExecutionLog, JobInstance, JobShard,
+		WorkflowDefinition, WorkflowInstance, WorkflowNode,
+		WorkflowNodeInstance []ent.Hook
 	}
 	inters struct {
-		Executor, JobDefinition, JobInstance []ent.Interceptor
+		DeadLetter, Executor, JobDefinition, JobExecutionLog, JobInstance, JobShard,
+		WorkflowDefinition, WorkflowInstance, WorkflowNode,
+		WorkflowNodeInstance []ent.Interceptor
 	}
 )

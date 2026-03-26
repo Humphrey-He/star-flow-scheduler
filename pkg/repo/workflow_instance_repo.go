@@ -35,6 +35,10 @@ func (r *WorkflowInstanceRepository) GetByInstanceNo(ctx context.Context, instan
 	return r.client.WorkflowInstance.Query().Where(workflowinstance.WorkflowInstanceNoEQ(instanceNo)).Only(ctx)
 }
 
+func (r *WorkflowInstanceRepository) GetByID(ctx context.Context, workflowInstanceID int64) (*ent.WorkflowInstance, error) {
+	return r.client.WorkflowInstance.Get(ctx, workflowInstanceID)
+}
+
 func (r *WorkflowInstanceRepository) ListByWorkflowCode(ctx context.Context, workflowCode string, limit int) ([]*ent.WorkflowInstance, error) {
 	if limit <= 0 || limit > 200 {
 		limit = 50

@@ -12,12 +12,26 @@ import (
 // Tx is a transactional client that is created by calling Client.Tx().
 type Tx struct {
 	config
+	// DeadLetter is the client for interacting with the DeadLetter builders.
+	DeadLetter *DeadLetterClient
 	// Executor is the client for interacting with the Executor builders.
 	Executor *ExecutorClient
 	// JobDefinition is the client for interacting with the JobDefinition builders.
 	JobDefinition *JobDefinitionClient
+	// JobExecutionLog is the client for interacting with the JobExecutionLog builders.
+	JobExecutionLog *JobExecutionLogClient
 	// JobInstance is the client for interacting with the JobInstance builders.
 	JobInstance *JobInstanceClient
+	// JobShard is the client for interacting with the JobShard builders.
+	JobShard *JobShardClient
+	// WorkflowDefinition is the client for interacting with the WorkflowDefinition builders.
+	WorkflowDefinition *WorkflowDefinitionClient
+	// WorkflowInstance is the client for interacting with the WorkflowInstance builders.
+	WorkflowInstance *WorkflowInstanceClient
+	// WorkflowNode is the client for interacting with the WorkflowNode builders.
+	WorkflowNode *WorkflowNodeClient
+	// WorkflowNodeInstance is the client for interacting with the WorkflowNodeInstance builders.
+	WorkflowNodeInstance *WorkflowNodeInstanceClient
 
 	// lazily loaded.
 	client     *Client
@@ -149,9 +163,16 @@ func (tx *Tx) Client() *Client {
 }
 
 func (tx *Tx) init() {
+	tx.DeadLetter = NewDeadLetterClient(tx.config)
 	tx.Executor = NewExecutorClient(tx.config)
 	tx.JobDefinition = NewJobDefinitionClient(tx.config)
+	tx.JobExecutionLog = NewJobExecutionLogClient(tx.config)
 	tx.JobInstance = NewJobInstanceClient(tx.config)
+	tx.JobShard = NewJobShardClient(tx.config)
+	tx.WorkflowDefinition = NewWorkflowDefinitionClient(tx.config)
+	tx.WorkflowInstance = NewWorkflowInstanceClient(tx.config)
+	tx.WorkflowNode = NewWorkflowNodeClient(tx.config)
+	tx.WorkflowNodeInstance = NewWorkflowNodeInstanceClient(tx.config)
 }
 
 // txDriver wraps the given dialect.Tx with a nop dialect.Driver implementation.
@@ -161,7 +182,7 @@ func (tx *Tx) init() {
 // of them in order to commit or rollback the transaction.
 //
 // If a closed transaction is embedded in one of the generated entities, and the entity
-// applies a query, for example: Executor.QueryXXX(), the query will be executed
+// applies a query, for example: DeadLetter.QueryXXX(), the query will be executed
 // through the driver which created this transaction.
 //
 // Note that txDriver is not goroutine safe.

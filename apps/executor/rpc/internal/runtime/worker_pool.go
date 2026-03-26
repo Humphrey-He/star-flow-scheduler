@@ -60,6 +60,7 @@ func (p *WorkerPool) worker(ctx context.Context, idx int) {
 				logx.Field("job_code", task.JobCode),
 				logx.Field("handler_name", task.HandlerName),
 				logx.Field("shard_no", task.ShardNo),
+				logx.Field("trace_id", task.TraceID),
 			)
 			atomic.AddInt64(&p.running, 1)
 			p.executeTask(ctx, task)
@@ -88,6 +89,7 @@ func (p *WorkerPool) executeTask(ctx context.Context, task *model.Task) {
 			logx.Field("instance_no", task.InstanceNo),
 			logx.Field("job_code", task.JobCode),
 			logx.Field("handler_name", task.HandlerName),
+			logx.Field("trace_id", task.TraceID),
 		)
 		p.reporter.Report(result)
 		return
@@ -111,6 +113,7 @@ func (p *WorkerPool) executeTask(ctx context.Context, task *model.Task) {
 			logx.Field("job_code", task.JobCode),
 			logx.Field("handler_name", task.HandlerName),
 			logx.Field("error_message", err.Error()),
+			logx.Field("trace_id", task.TraceID),
 		)
 	}
 
@@ -122,6 +125,7 @@ func (p *WorkerPool) executeTask(ctx context.Context, task *model.Task) {
 			logx.Field("instance_no", task.InstanceNo),
 			logx.Field("job_code", task.JobCode),
 			logx.Field("handler_name", task.HandlerName),
+			logx.Field("trace_id", task.TraceID),
 		)
 	}
 

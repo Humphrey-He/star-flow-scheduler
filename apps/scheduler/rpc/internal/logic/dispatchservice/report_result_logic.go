@@ -6,7 +6,9 @@ import (
 
 	"github.com/Humphrey-He/star-flow-scheduler/apps/scheduler/rpc/internal/state"
 	"github.com/Humphrey-He/star-flow-scheduler/apps/scheduler/rpc/internal/svc"
+	"github.com/Humphrey-He/star-flow-scheduler/pkg/ent"
 	"github.com/Humphrey-He/star-flow-scheduler/pkg/metricsx"
+	pkgrepo "github.com/Humphrey-He/star-flow-scheduler/pkg/repo"
 	"github.com/Humphrey-He/star-flow-scheduler/pkg/types"
 	schedulev1 "github.com/Humphrey-He/star-flow-scheduler/proto/pb/github.com/Humphrey-He/star-flow-scheduler/proto/schedulerv1"
 
@@ -39,9 +41,7 @@ func (l *ReportResultLogic) ReportResult(in *schedulev1.ReportResultRequest) (*s
 	if err != nil {
 		metricsx.Inc("scheduler_report_result_fail_total")
 		l.Logger.Errorw("scheduler report result failed",
-			logx.Field("instance_no", in.InstanceNo),
-			logx.Field("status", status),
-			logx.Field("error_message", err.Error()),
+			append(reportFields(in, status, l.resolveWorkflowInstanceNo(in.InstanceNo)), logx.Field("error_message", err.Error()))...,
 		)
 		return nil, err
 	}
@@ -51,8 +51,7 @@ func (l *ReportResultLogic) ReportResult(in *schedulev1.ReportResultRequest) (*s
 		metricsx.Inc("scheduler_report_result_fail_total")
 	}
 	l.Logger.Infow("scheduler report result",
-		logx.Field("instance_no", in.InstanceNo),
-		logx.Field("status", status),
+		reportFields(in, status, l.resolveWorkflowInstanceNo(in.InstanceNo))...,
 	)
 	if l.svcCtx.WorkflowRuntime != nil {
 		instance, err := l.svcCtx.InstanceRepo.GetByInstanceNo(l.ctx, in.InstanceNo)
@@ -104,4 +103,50 @@ func unixMilliPtr(ms int64) *time.Time {
 	}
 	t := time.UnixMilli(ms)
 	return &t
+}
+
+func reportFields(in *schedulev1.ReportResultRequest, status state.InstanceStatus, workflowInstanceNo string) []logx.LogField {
+	fields := []logx.LogField{
+		logx.Field("instance_no", in.InstanceNo),
+		logx.Field("status", status),
+	}
+	if in.Meta != nil {
+		if in.Meta.TraceId != "" {
+			fields = append(fields, logx.Field("trace_id", in.Meta.TraceId))
+		}
+		if in.Meta.RequestId != "" {
+			fields = append(fields, logx.Field("request_id", in.Meta.RequestId))
+		}
+	}
+	if workflowInstanceNo != "" {
+		fields = append(fields, logx.Field("workflow_instance_no", workflowInstanceNo))
+	}
+	if in.ShardNo != "" {
+		fields = append(fields, logx.Field("shard_no", in.ShardNo))
+	}
+	return fields
+}
+
+func (l *ReportResultLogic) resolveWorkflowInstanceNo(instanceNo string) string {
+	if l.svcCtx == nil || l.svcCtx.Ent == nil || l.svcCtx.InstanceRepo == nil {
+		return ""
+	}
+	instance, err := l.svcCtx.InstanceRepo.GetByInstanceNo(l.ctx, instanceNo)
+	if err != nil {
+		return ""
+	}
+	nodeRepo := pkgrepo.NewWorkflowNodeInstanceRepository(l.svcCtx.Ent)
+	nodeInst, err := nodeRepo.GetByJobInstanceID(l.ctx, int64(instance.ID))
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return ""
+		}
+		return ""
+	}
+	workflowRepo := pkgrepo.NewWorkflowInstanceRepository(l.svcCtx.Ent)
+	workflowInst, err := workflowRepo.GetByID(l.ctx, nodeInst.WorkflowInstanceID)
+	if err != nil {
+		return ""
+	}
+	return workflowInst.WorkflowInstanceNo
 }
