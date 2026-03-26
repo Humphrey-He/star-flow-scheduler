@@ -5,6 +5,7 @@ import (
 
 	"github.com/Humphrey-He/star-flow-scheduler/pkg/ent"
 	"github.com/Humphrey-He/star-flow-scheduler/pkg/ent/deadletter"
+	"github.com/Humphrey-He/star-flow-scheduler/pkg/types"
 )
 
 type DeadLetterFilter struct {
@@ -100,4 +101,18 @@ func (r *DeadLetterRepository) BatchListByIDs(ctx context.Context, ids []int64) 
 		idInts = append(idInts, int(id))
 	}
 	return r.client.DeadLetter.Query().Where(deadletter.IDIn(idInts...)).All(ctx)
+}
+
+func (r *DeadLetterRepository) MarkRetriedIfOpen(ctx context.Context, id int64) (int, error) {
+	return r.client.DeadLetter.Update().
+		Where(deadletter.IDEQ(int(id)), deadletter.StatusEQ(string(types.DeadLetterStatusOpen))).
+		SetStatus(string(types.DeadLetterStatusRetried)).
+		Save(ctx)
+}
+
+func (r *DeadLetterRepository) MarkClosedIfOpen(ctx context.Context, id int64) (int, error) {
+	return r.client.DeadLetter.Update().
+		Where(deadletter.IDEQ(int(id)), deadletter.StatusEQ(string(types.DeadLetterStatusOpen))).
+		SetStatus(string(types.DeadLetterStatusClosed)).
+		Save(ctx)
 }

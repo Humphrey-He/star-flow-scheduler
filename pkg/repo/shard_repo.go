@@ -5,6 +5,7 @@ import (
 
 	"github.com/Humphrey-He/star-flow-scheduler/pkg/ent"
 	"github.com/Humphrey-He/star-flow-scheduler/pkg/ent/jobshard"
+	"github.com/Humphrey-He/star-flow-scheduler/pkg/types"
 )
 
 type ShardCreate struct {
@@ -73,4 +74,12 @@ func (r *ShardRepository) CountByInstanceNoAndStatus(ctx context.Context, instan
 	return r.client.JobShard.Query().
 		Where(jobshard.InstanceIDEQ(instanceID), jobshard.StatusEQ(status)).
 		Count(ctx)
+}
+
+func (r *ShardRepository) MarkSuccessIfRunning(ctx context.Context, shardNo string) (int, error) {
+	return r.UpdateStatusIf(ctx, shardNo, string(types.ShardStatusRunning), string(types.ShardStatusSuccess))
+}
+
+func (r *ShardRepository) MarkFailedIfRunning(ctx context.Context, shardNo string) (int, error) {
+	return r.UpdateStatusIf(ctx, shardNo, string(types.ShardStatusRunning), string(types.ShardStatusFailed))
 }
