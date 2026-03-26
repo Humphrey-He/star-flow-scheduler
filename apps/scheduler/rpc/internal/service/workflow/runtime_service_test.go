@@ -30,17 +30,32 @@ func (f *fakeWorkflowNodeRepo) ListByWorkflowID(_ context.Context, _ int64) ([]*
 
 type fakeWorkflowInstanceRepo struct {
 	nextID int64
+	items  map[int64]*ent.WorkflowInstance
 }
 
 func (f *fakeWorkflowInstanceRepo) Create(_ context.Context, req pkgrepo.WorkflowInstanceCreate) (*ent.WorkflowInstance, error) {
 	f.nextID++
-	return &ent.WorkflowInstance{
+	if f.items == nil {
+		f.items = make(map[int64]*ent.WorkflowInstance)
+	}
+	inst := &ent.WorkflowInstance{
 		ID:                 f.nextID,
 		WorkflowInstanceNo: req.WorkflowInstanceNo,
 		WorkflowID:         req.WorkflowID,
 		WorkflowCode:       req.WorkflowCode,
 		Status:             req.Status,
-	}, nil
+	}
+	f.items[inst.ID] = inst
+	return inst, nil
+}
+
+func (f *fakeWorkflowInstanceRepo) UpdateStatusIf(_ context.Context, workflowInstanceID int64, fromStatus string, toStatus string) (int, error) {
+	inst := f.items[workflowInstanceID]
+	if inst == nil || inst.Status != fromStatus {
+		return 0, nil
+	}
+	inst.Status = toStatus
+	return 1, nil
 }
 
 type fakeJobRepo struct {
@@ -240,6 +255,108 @@ func TestTriggerConditionAnySuccess(t *testing.T) {
 	}
 	if dispatcher.Calls() != 1 {
 		t.Fatalf("expected downstream triggered once got %d", dispatcher.Calls())
+	}
+}
+
+func TestFailStrategyStopBlocksDownstream(t *testing.T) {
+	nodes := []*ent.WorkflowNode{
+		{NodeCode: "A", JobCode: "jobA", FailStrategy: "stop"},
+		{NodeCode: "B", JobCode: "jobB", UpstreamCodes: strPtr("A"), TriggerCondition: "all_finished"},
+	}
+	nodeRepo := &fakeWorkflowNodeRepo{nodes: nodes}
+	nodeInstRepo := newFakeNodeInstanceRepo()
+	workflowRepo := &fakeWorkflowRepo{def: &ent.WorkflowDefinition{ID: 1, WorkflowCode: "wf"}}
+	instanceRepo := &fakeWorkflowInstanceRepo{}
+	jobs := &fakeJobRepo{
+		jobs: map[string]*ent.JobDefinition{
+			"jobA": {ID: 1, JobCode: "jobA"},
+			"jobB": {ID: 2, JobCode: "jobB"},
+		},
+	}
+	dispatcher := &fakeDispatcher{}
+
+	svc := NewRuntimeService(nil, workflowRepo, nodeRepo, nodeInstRepo, instanceRepo, jobs, dispatcher)
+
+	instance, _, err := svc.CreateWorkflowInstance(context.Background(), "wf")
+	if err != nil {
+		t.Fatalf("create workflow instance err: %v", err)
+	}
+	_, _ = nodeInstRepo.UpdateStatusIf(context.Background(), instance.ID, "A", string(types.WorkflowNodeStatusReady), string(types.WorkflowNodeStatusRunning), nil)
+
+	if err := svc.OnNodeJobFinished(context.Background(), instance.ID, "A", types.WorkflowNodeStatusFailed); err != nil {
+		t.Fatalf("on node finished err: %v", err)
+	}
+	if dispatcher.Calls() != 0 {
+		t.Fatalf("expected downstream not triggered got %d", dispatcher.Calls())
+	}
+	if instanceRepo.items[instance.ID].Status != string(types.WorkflowStatusFailed) {
+		t.Fatalf("expected workflow failed got %s", instanceRepo.items[instance.ID].Status)
+	}
+}
+
+func TestFailStrategyContinueAllowsAllFinished(t *testing.T) {
+	nodes := []*ent.WorkflowNode{
+		{NodeCode: "A", JobCode: "jobA", FailStrategy: "continue"},
+		{NodeCode: "B", JobCode: "jobB", UpstreamCodes: strPtr("A"), TriggerCondition: "all_finished"},
+	}
+	nodeRepo := &fakeWorkflowNodeRepo{nodes: nodes}
+	nodeInstRepo := newFakeNodeInstanceRepo()
+	workflowRepo := &fakeWorkflowRepo{def: &ent.WorkflowDefinition{ID: 1, WorkflowCode: "wf"}}
+	instanceRepo := &fakeWorkflowInstanceRepo{}
+	jobs := &fakeJobRepo{
+		jobs: map[string]*ent.JobDefinition{
+			"jobA": {ID: 1, JobCode: "jobA"},
+			"jobB": {ID: 2, JobCode: "jobB"},
+		},
+	}
+	dispatcher := &fakeDispatcher{}
+
+	svc := NewRuntimeService(nil, workflowRepo, nodeRepo, nodeInstRepo, instanceRepo, jobs, dispatcher)
+
+	instance, _, err := svc.CreateWorkflowInstance(context.Background(), "wf")
+	if err != nil {
+		t.Fatalf("create workflow instance err: %v", err)
+	}
+	_, _ = nodeInstRepo.UpdateStatusIf(context.Background(), instance.ID, "A", string(types.WorkflowNodeStatusReady), string(types.WorkflowNodeStatusRunning), nil)
+
+	if err := svc.OnNodeJobFinished(context.Background(), instance.ID, "A", types.WorkflowNodeStatusFailed); err != nil {
+		t.Fatalf("on node finished err: %v", err)
+	}
+	if dispatcher.Calls() != 1 {
+		t.Fatalf("expected downstream triggered once got %d", dispatcher.Calls())
+	}
+}
+
+func TestFailStrategyContinueDoesNotOverrideAllSuccess(t *testing.T) {
+	nodes := []*ent.WorkflowNode{
+		{NodeCode: "A", JobCode: "jobA", FailStrategy: "continue"},
+		{NodeCode: "B", JobCode: "jobB", UpstreamCodes: strPtr("A"), TriggerCondition: "all_success"},
+	}
+	nodeRepo := &fakeWorkflowNodeRepo{nodes: nodes}
+	nodeInstRepo := newFakeNodeInstanceRepo()
+	workflowRepo := &fakeWorkflowRepo{def: &ent.WorkflowDefinition{ID: 1, WorkflowCode: "wf"}}
+	instanceRepo := &fakeWorkflowInstanceRepo{}
+	jobs := &fakeJobRepo{
+		jobs: map[string]*ent.JobDefinition{
+			"jobA": {ID: 1, JobCode: "jobA"},
+			"jobB": {ID: 2, JobCode: "jobB"},
+		},
+	}
+	dispatcher := &fakeDispatcher{}
+
+	svc := NewRuntimeService(nil, workflowRepo, nodeRepo, nodeInstRepo, instanceRepo, jobs, dispatcher)
+
+	instance, _, err := svc.CreateWorkflowInstance(context.Background(), "wf")
+	if err != nil {
+		t.Fatalf("create workflow instance err: %v", err)
+	}
+	_, _ = nodeInstRepo.UpdateStatusIf(context.Background(), instance.ID, "A", string(types.WorkflowNodeStatusReady), string(types.WorkflowNodeStatusRunning), nil)
+
+	if err := svc.OnNodeJobFinished(context.Background(), instance.ID, "A", types.WorkflowNodeStatusFailed); err != nil {
+		t.Fatalf("on node finished err: %v", err)
+	}
+	if dispatcher.Calls() != 0 {
+		t.Fatalf("expected downstream not triggered got %d", dispatcher.Calls())
 	}
 }
 
