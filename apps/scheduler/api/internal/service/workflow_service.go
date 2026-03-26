@@ -9,6 +9,7 @@ import (
 	"github.com/Humphrey-He/star-flow-scheduler/pkg/db"
 	"github.com/Humphrey-He/star-flow-scheduler/pkg/ent"
 	"github.com/Humphrey-He/star-flow-scheduler/pkg/repo"
+	"github.com/Humphrey-He/star-flow-scheduler/pkg/types"
 )
 
 type WorkflowService struct {
@@ -242,7 +243,7 @@ func buildNodeCreates(workflowID int64, nodes []WorkflowNodeSpec) []repo.Workflo
 		}
 		failStrategy := n.FailStrategy
 		if failStrategy == "" {
-			failStrategy = "stop"
+			failStrategy = string(types.WorkflowFailStrategyStop)
 		}
 		timeout := n.TimeoutMs
 		if timeout <= 0 {
