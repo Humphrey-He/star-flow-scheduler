@@ -24,6 +24,7 @@ func NewDispatchJobLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Dispa
 }
 
 func (l *DispatchJobLogic) DispatchJob(in *schedulerv1_schedulev1.DispatchJobRequest) (*schedulerv1_schedulev1.DispatchJobResponse, error) {
+	_ = l.svcCtx.DispatchSvc
 	return &schedulerv1_schedulev1.DispatchJobResponse{
 		Accepted: false,
 		Message:  "dispatch not supported on scheduler rpc",

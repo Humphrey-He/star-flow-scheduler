@@ -24,6 +24,7 @@ func NewReportResultLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Repo
 }
 
 func (l *ReportResultLogic) ReportResult(in *schedulerv1_schedulev1.ReportResultRequest) (*schedulerv1_schedulev1.ReportResultResponse, error) {
+	_ = l.svcCtx.InstanceSvc
 	l.Logger.Infof("report result instance=%s shard=%s status=%v", in.InstanceNo, in.ShardNo, in.Status)
 	return &schedulerv1_schedulev1.ReportResultResponse{Ok: true}, nil
 }

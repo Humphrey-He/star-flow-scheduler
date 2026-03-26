@@ -4,16 +4,23 @@ import (
 	"fmt"
 
 	"github.com/Humphrey-He/star-flow-scheduler/apps/scheduler/rpc/internal/config"
+	"github.com/Humphrey-He/star-flow-scheduler/apps/scheduler/rpc/internal/repo"
+	"github.com/Humphrey-He/star-flow-scheduler/apps/scheduler/rpc/internal/service/dispatch"
+	"github.com/Humphrey-He/star-flow-scheduler/apps/scheduler/rpc/internal/service/instance"
+	"github.com/Humphrey-He/star-flow-scheduler/apps/scheduler/rpc/internal/service/registry"
 	"github.com/Humphrey-He/star-flow-scheduler/pkg/db"
 	"github.com/Humphrey-He/star-flow-scheduler/pkg/ent"
-	"github.com/Humphrey-He/star-flow-scheduler/pkg/repo"
+	pkgrepo "github.com/Humphrey-He/star-flow-scheduler/pkg/repo"
 )
 
 type ServiceContext struct {
-	Config    config.Config
-	DB        *db.DB
-	Ent       *ent.Client
-	Executors *repo.ExecutorRepository
+	Config       config.Config
+	DB           *db.DB
+	Ent          *ent.Client
+	ExecutorRepo *repo.ExecutorRepository
+	RegistrySvc  *registry.Service
+	DispatchSvc  *dispatch.Service
+	InstanceSvc  *instance.Service
 }
 
 func NewServiceContext(c config.Config) *ServiceContext {
@@ -22,10 +29,15 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		panic(fmt.Sprintf("open postgres failed: %v", err))
 	}
 
+	executorRepo := repo.NewExecutorRepository(pkgrepo.NewExecutorRepository(database.Client))
+
 	return &ServiceContext{
-		Config:    c,
-		DB:        database,
-		Ent:       database.Client,
-		Executors: repo.NewExecutorRepository(database.Client),
+		Config:       c,
+		DB:           database,
+		Ent:          database.Client,
+		ExecutorRepo: executorRepo,
+		RegistrySvc:  registry.NewService(executorRepo),
+		DispatchSvc:  dispatch.NewService(),
+		InstanceSvc:  instance.NewService(),
 	}
 }

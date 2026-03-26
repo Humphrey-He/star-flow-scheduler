@@ -24,7 +24,7 @@ func NewHeartbeatLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Heartbe
 }
 
 func (l *HeartbeatLogic) Heartbeat(in *schedulerv1_schedulev1.HeartbeatRequest) (*schedulerv1_schedulev1.HeartbeatResponse, error) {
-	err := l.svcCtx.Executors.UpdateHeartbeat(l.ctx, in.ExecutorCode, int(in.CurrentLoad))
+	err := l.svcCtx.RegistrySvc.Heartbeat(l.ctx, in.ExecutorCode, int(in.CurrentLoad))
 	if err != nil {
 		return nil, err
 	}
