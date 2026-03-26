@@ -73,6 +73,12 @@ func (r *WorkflowNodeInstanceRepository) GetByWorkflowInstanceIDAndNodeCode(ctx 
 		Only(ctx)
 }
 
+func (r *WorkflowNodeInstanceRepository) GetByJobInstanceID(ctx context.Context, jobInstanceID int64) (*ent.WorkflowNodeInstance, error) {
+	return r.client.WorkflowNodeInstance.Query().
+		Where(workflownodeinstance.JobInstanceIDEQ(jobInstanceID)).
+		Only(ctx)
+}
+
 func (r *WorkflowNodeInstanceRepository) UpdateStatusIf(ctx context.Context, workflowInstanceID int64, nodeCode string, fromStatus string, toStatus string, startTime *time.Time) (int, error) {
 	update := r.client.WorkflowNodeInstance.Update().
 		Where(

@@ -171,6 +171,17 @@ func (s *RuntimeService) OnNodeJobFinished(ctx context.Context, workflowInstance
 	return nil
 }
 
+func (s *RuntimeService) OnJobInstanceFinished(ctx context.Context, jobInstanceID int64, status types.WorkflowNodeStatus) error {
+	nodeInst, err := s.nodeInstances.GetByJobInstanceID(ctx, jobInstanceID)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return nil
+		}
+		return err
+	}
+	return s.OnNodeJobFinished(ctx, nodeInst.WorkflowInstanceID, nodeInst.NodeCode, status)
+}
+
 func newWorkflowInstanceNo() string {
 	return fmt.Sprintf("WF-%d", time.Now().UnixNano())
 }

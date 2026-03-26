@@ -6,6 +6,7 @@ import (
 
 	"github.com/Humphrey-He/star-flow-scheduler/apps/scheduler/rpc/internal/state"
 	"github.com/Humphrey-He/star-flow-scheduler/apps/scheduler/rpc/internal/svc"
+	"github.com/Humphrey-He/star-flow-scheduler/pkg/types"
 	schedulev1 "github.com/Humphrey-He/star-flow-scheduler/proto/pb/github.com/Humphrey-He/star-flow-scheduler/proto/schedulerv1"
 
 	"github.com/zeromicro/go-zero/core/logx"
@@ -33,6 +34,13 @@ func (l *ReportResultLogic) ReportResult(in *schedulev1.ReportResultRequest) (*s
 	if err != nil {
 		return nil, err
 	}
+	if l.svcCtx.WorkflowRuntime != nil {
+		instance, err := l.svcCtx.InstanceRepo.GetByInstanceNo(l.ctx, in.InstanceNo)
+		if err == nil && instance.WorkflowID != nil {
+			nodeStatus := mapWorkflowNodeStatus(status)
+			_ = l.svcCtx.WorkflowRuntime.OnJobInstanceFinished(l.ctx, int64(instance.ID), nodeStatus)
+		}
+	}
 
 	return &schedulev1.ReportResultResponse{Ok: true}, nil
 }
@@ -49,6 +57,17 @@ func mapReportStatus(status schedulev1.InstanceStatus) state.InstanceStatus {
 		return state.StatusDispatched
 	default:
 		return state.StatusFailed
+	}
+}
+
+func mapWorkflowNodeStatus(status state.InstanceStatus) types.WorkflowNodeStatus {
+	switch status {
+	case state.StatusSuccess:
+		return types.WorkflowNodeStatusSuccess
+	case state.StatusFailed:
+		return types.WorkflowNodeStatusFailed
+	default:
+		return types.WorkflowNodeStatusFailed
 	}
 }
 
