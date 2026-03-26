@@ -1,74 +1,288 @@
 syntax = "proto3";
 
-package starflow.scheduler.v1;
+package scheduler.v1;
 
-option go_package = "starflow-scheduler/proto;proto";
+option go_package = "github.com/Humphrey-He/star-flow-scheduler/proto/schedulerv1;schedulev1";
 
-message RegisterExecutorRequest {
-  string executor_code = 1;
-  string host = 2;
-  string ip = 3;
-  string grpc_addr = 4;
-  string http_addr = 5;
-  string tags = 6;
-  int32 capacity = 7;
-  string version = 8;
-  string metadata_json = 9;
-}
-
-message RegisterExecutorResponse {
-  int64 executor_id = 1;
-  int32 heartbeat_interval_sec = 2;
-}
-
-message HeartbeatRequest {
-  string executor_code = 1;
-  int32 current_load = 2;
-  int32 running_jobs = 3;
-  int64 timestamp_unix = 4;
-}
-
-message HeartbeatResponse {
-  bool ok = 1;
-}
-
-message DispatchJobRequest {
-  string instance_no = 1;
-  string job_code = 2;
-  string handler_name = 3;
-  string shard_no = 4;
-  int32 timeout_ms = 5;
-  string payload_json = 6;
-  string trace_id = 7;
-  string idempotent_key = 8;
-}
-
-message DispatchJobResponse {
-  bool accepted = 1;
-  string message = 2;
-}
-
-message ReportResultRequest {
-  string instance_no = 1;
-  string shard_no = 2;
-  string status = 3;
-  int64 start_time_unix = 4;
-  int64 finish_time_unix = 5;
-  string error_code = 6;
-  string error_message = 7;
-  string result_summary = 8;
-}
-
-message ReportResultResponse {
-  bool ok = 1;
-}
+import "common.proto";
 
 service SchedulerService {
-  rpc RegisterExecutor(RegisterExecutorRequest) returns (RegisterExecutorResponse);
-  rpc Heartbeat(HeartbeatRequest) returns (HeartbeatResponse);
-  rpc ReportResult(ReportResultRequest) returns (ReportResultResponse);
+  rpc CreateJob(CreateJobRequest) returns (CreateJobResponse);
+  rpc UpdateJob(UpdateJobRequest) returns (UpdateJobResponse);
+  rpc EnableJob(EnableJobRequest) returns (Empty);
+  rpc DisableJob(DisableJobRequest) returns (Empty);
+  rpc DeleteJob(DeleteJobRequest) returns (Empty);
+  rpc GetJob(GetJobRequest) returns (GetJobResponse);
+  rpc ListJobs(ListJobsRequest) returns (ListJobsResponse);
+
+  rpc TriggerJob(TriggerJobRequest) returns (TriggerJobResponse);
+  rpc GetJobInstance(GetJobInstanceRequest) returns (GetJobInstanceResponse);
+  rpc ListJobInstances(ListJobInstancesRequest) returns (ListJobInstancesResponse);
+
+  rpc ListDeadLetters(ListDeadLettersRequest) returns (ListDeadLettersResponse);
+  rpc RetryDeadLetter(RetryDeadLetterRequest) returns (RetryDeadLetterResponse);
+  rpc BatchRetryDeadLetters(BatchRetryDeadLettersRequest) returns (BatchRetryDeadLettersResponse);
+
+  rpc ListExecutors(ListExecutorsRequest) returns (ListExecutorsResponse);
 }
 
-service ExecutorService {
-  rpc DispatchJob(DispatchJobRequest) returns (DispatchJobResponse);
+message JobDefinition {
+  int64 id = 1;
+  string job_code = 2;
+  string job_name = 3;
+  JobType job_type = 4;
+  string schedule_expr = 5;
+  int64 delay_ms = 6;
+  ExecuteMode execute_mode = 7;
+  string handler_name = 8;
+  JobPayload default_payload = 9;
+  int32 timeout_ms = 10;
+  RetryPolicy retry_policy = 11;
+  int32 priority = 12;
+  int32 shard_total = 13;
+  string route_strategy = 14;
+  string executor_tag = 15;
+  string idempotent_key_expr = 16;
+  JobStatus status = 17;
+  string created_by = 18;
+  string updated_by = 19;
+  int64 created_at = 20;
+  int64 updated_at = 21;
+}
+
+message CreateJobRequest {
+  Meta meta = 1;
+  string job_code = 2;
+  string job_name = 3;
+  JobType job_type = 4;
+  string schedule_expr = 5;
+  int64 delay_ms = 6;
+  ExecuteMode execute_mode = 7;
+  string handler_name = 8;
+  JobPayload default_payload = 9;
+  int32 timeout_ms = 10;
+  RetryPolicy retry_policy = 11;
+  int32 priority = 12;
+  int32 shard_total = 13;
+  string route_strategy = 14;
+  string executor_tag = 15;
+  string idempotent_key_expr = 16;
+}
+
+message CreateJobResponse {
+  int64 id = 1;
+  string job_code = 2;
+}
+
+message UpdateJobRequest {
+  Meta meta = 1;
+  string job_code = 2;
+  string job_name = 3;
+  string schedule_expr = 4;
+  int64 delay_ms = 5;
+  JobPayload default_payload = 6;
+  int32 timeout_ms = 7;
+  RetryPolicy retry_policy = 8;
+  int32 priority = 9;
+  int32 shard_total = 10;
+  string route_strategy = 11;
+  string executor_tag = 12;
+  string idempotent_key_expr = 13;
+}
+
+message UpdateJobResponse {
+  JobDefinition job = 1;
+}
+
+message EnableJobRequest {
+  Meta meta = 1;
+  string job_code = 2;
+}
+
+message DisableJobRequest {
+  Meta meta = 1;
+  string job_code = 2;
+}
+
+message DeleteJobRequest {
+  Meta meta = 1;
+  string job_code = 2;
+}
+
+message GetJobRequest {
+  string job_code = 1;
+}
+
+message GetJobResponse {
+  JobDefinition job = 1;
+}
+
+message ListJobsRequest {
+  string keyword = 1;
+  JobType job_type = 2;
+  JobStatus status = 3;
+  PageRequest page = 4;
+}
+
+message ListJobsResponse {
+  repeated JobDefinition items = 1;
+  PageResponse page = 2;
+}
+
+message JobInstance {
+  int64 id = 1;
+  string instance_no = 2;
+  int64 job_id = 3;
+  int64 workflow_id = 4;
+  TriggerType trigger_type = 5;
+  int64 trigger_time = 6;
+  int64 scheduled_time = 7;
+  int64 dispatch_time = 8;
+  int64 start_time = 9;
+  int64 finish_time = 10;
+  InstanceStatus status = 11;
+  int32 retry_count = 12;
+  int64 current_backoff_ms = 13;
+  int64 executor_id = 14;
+  int32 shard_total = 15;
+  int32 success_shards = 16;
+  int32 failed_shards = 17;
+  JobPayload payload = 18;
+  string result_summary = 19;
+  string error_code = 20;
+  string error_message = 21;
+  int64 created_at = 22;
+  int64 updated_at = 23;
+}
+
+message TriggerJobRequest {
+  Meta meta = 1;
+  string job_code = 2;
+  TriggerType trigger_type = 3;
+  JobPayload payload = 4;
+  string idempotent_key = 5;
+}
+
+message TriggerJobResponse {
+  string instance_no = 1;
+  InstanceStatus status = 2;
+}
+
+message GetJobInstanceRequest {
+  string instance_no = 1;
+}
+
+message GetJobInstanceResponse {
+  JobInstance instance = 1;
+  repeated JobShard shards = 2;
+  repeated JobExecutionLog logs = 3;
+}
+
+message ListJobInstancesRequest {
+  string job_code = 1;
+  InstanceStatus status = 2;
+  int64 start_time_from = 3;
+  int64 start_time_to = 4;
+  PageRequest page = 5;
+}
+
+message ListJobInstancesResponse {
+  repeated JobInstance items = 1;
+  PageResponse page = 2;
+}
+
+message JobShard {
+  int64 id = 1;
+  string shard_no = 2;
+  string instance_no = 3;
+  int32 shard_index = 4;
+  int32 shard_total = 5;
+  string route_key = 6;
+  int64 executor_id = 7;
+  ShardStatus status = 8;
+  JobPayload payload = 9;
+  int32 retry_count = 10;
+  int64 start_time = 11;
+  int64 finish_time = 12;
+  string error_message = 13;
+}
+
+message JobExecutionLog {
+  int64 id = 1;
+  string instance_no = 2;
+  string shard_no = 3;
+  int64 executor_id = 4;
+  string log_level = 5;
+  string phase = 6;
+  string message = 7;
+  string trace_id = 8;
+  int64 created_at = 9;
+}
+
+message DeadLetter {
+  int64 id = 1;
+  string instance_no = 2;
+  int64 job_id = 3;
+  DeadReason dead_reason = 4;
+  string dead_message = 5;
+  string retry_snapshot = 6;
+  int64 last_executor_id = 7;
+  string status = 8;
+  int64 created_at = 9;
+  int64 updated_at = 10;
+}
+
+message ListDeadLettersRequest {
+  string status = 1;
+  DeadReason dead_reason = 2;
+  PageRequest page = 3;
+}
+
+message ListDeadLettersResponse {
+  repeated DeadLetter items = 1;
+  PageResponse page = 2;
+}
+
+message RetryDeadLetterRequest {
+  Meta meta = 1;
+  int64 dead_id = 2;
+}
+
+message RetryDeadLetterResponse {
+  string instance_no = 1;
+}
+
+message BatchRetryDeadLettersRequest {
+  Meta meta = 1;
+  repeated int64 dead_ids = 2;
+}
+
+message BatchRetryDeadLettersResponse {
+  repeated string instance_nos = 1;
+}
+
+message ExecutorInfo {
+  int64 id = 1;
+  string executor_code = 2;
+  string host = 3;
+  string ip = 4;
+  string grpc_addr = 5;
+  string http_addr = 6;
+  repeated string tags = 7;
+  int32 capacity = 8;
+  int32 current_load = 9;
+  string version = 10;
+  ExecutorStatus status = 11;
+  int64 last_heartbeat_at = 12;
+}
+
+message ListExecutorsRequest {
+  ExecutorStatus status = 1;
+  string tag = 2;
+  PageRequest page = 3;
+}
+
+message ListExecutorsResponse {
+  repeated ExecutorInfo items = 1;
+  PageResponse page = 2;
 }

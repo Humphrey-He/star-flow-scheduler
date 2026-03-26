@@ -1,0 +1,101 @@
+syntax = "proto3";
+
+package scheduler.v1;
+
+option go_package = "github.com/Humphrey-He/star-flow-scheduler/proto/schedulerv1;schedulev1";
+
+message Empty {}
+
+message Meta {
+  string trace_id = 1;
+  string request_id = 2;
+  string operator = 3;
+}
+
+enum JobType {
+  JOB_TYPE_UNSPECIFIED = 0;
+  JOB_TYPE_CRON = 1;
+  JOB_TYPE_DELAY = 2;
+  JOB_TYPE_ONCE = 3;
+  JOB_TYPE_DAG = 4;
+}
+
+enum ExecuteMode {
+  EXECUTE_MODE_UNSPECIFIED = 0;
+  EXECUTE_MODE_STANDALONE = 1;
+  EXECUTE_MODE_SHARDING = 2;
+  EXECUTE_MODE_WORKFLOW = 3;
+}
+
+enum JobStatus {
+  JOB_STATUS_UNSPECIFIED = 0;
+  JOB_STATUS_ENABLED = 1;
+  JOB_STATUS_DISABLED = 2;
+}
+
+enum InstanceStatus {
+  INSTANCE_STATUS_UNSPECIFIED = 0;
+  INSTANCE_STATUS_PENDING = 1;
+  INSTANCE_STATUS_DISPATCHED = 2;
+  INSTANCE_STATUS_RUNNING = 3;
+  INSTANCE_STATUS_SUCCESS = 4;
+  INSTANCE_STATUS_FAILED = 5;
+  INSTANCE_STATUS_RETRY_WAIT = 6;
+  INSTANCE_STATUS_DEAD = 7;
+  INSTANCE_STATUS_CANCELED = 8;
+}
+
+enum ShardStatus {
+  SHARD_STATUS_UNSPECIFIED = 0;
+  SHARD_STATUS_PENDING = 1;
+  SHARD_STATUS_DISPATCHED = 2;
+  SHARD_STATUS_RUNNING = 3;
+  SHARD_STATUS_SUCCESS = 4;
+  SHARD_STATUS_FAILED = 5;
+  SHARD_STATUS_CANCELED = 6;
+}
+
+enum ExecutorStatus {
+  EXECUTOR_STATUS_UNSPECIFIED = 0;
+  EXECUTOR_STATUS_ONLINE = 1;
+  EXECUTOR_STATUS_OFFLINE = 2;
+  EXECUTOR_STATUS_DRAINING = 3;
+}
+
+enum TriggerType {
+  TRIGGER_TYPE_UNSPECIFIED = 0;
+  TRIGGER_TYPE_CRON = 1;
+  TRIGGER_TYPE_MANUAL = 2;
+  TRIGGER_TYPE_DELAY = 3;
+  TRIGGER_TYPE_EVENT = 4;
+  TRIGGER_TYPE_RETRY = 5;
+}
+
+enum DeadReason {
+  DEAD_REASON_UNSPECIFIED = 0;
+  DEAD_REASON_TIMEOUT = 1;
+  DEAD_REASON_EXECUTE_FAILED = 2;
+  DEAD_REASON_DEPENDENCY_FAILED = 3;
+  DEAD_REASON_CANCELED = 4;
+}
+
+message RetryPolicy {
+  int32 retry_limit = 1;
+  repeated int64 backoff_ms = 2;
+}
+
+message JobPayload {
+  bytes raw = 1;
+  string content_type = 2;
+}
+
+message PageRequest {
+  int32 page = 1;
+  int32 page_size = 2;
+}
+
+message PageResponse {
+  int64 total = 1;
+  int32 page = 2;
+  int32 page_size = 3;
+}

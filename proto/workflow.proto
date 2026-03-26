@@ -1,0 +1,117 @@
+syntax = "proto3";
+
+package scheduler.v1;
+
+option go_package = "github.com/Humphrey-He/star-flow-scheduler/proto/schedulerv1;schedulev1";
+
+import "common.proto";
+
+service WorkflowService {
+  rpc CreateWorkflow(CreateWorkflowRequest) returns (CreateWorkflowResponse);
+  rpc UpdateWorkflow(UpdateWorkflowRequest) returns (UpdateWorkflowResponse);
+  rpc GetWorkflow(GetWorkflowRequest) returns (GetWorkflowResponse);
+  rpc ListWorkflows(ListWorkflowsRequest) returns (ListWorkflowsResponse);
+  rpc TriggerWorkflow(TriggerWorkflowRequest) returns (TriggerWorkflowResponse);
+  rpc GetWorkflowInstance(GetWorkflowInstanceRequest) returns (GetWorkflowInstanceResponse);
+}
+
+message WorkflowNode {
+  string node_code = 1;
+  string node_name = 2;
+  string job_code = 3;
+  repeated string upstream_codes = 4;
+  string trigger_condition = 5;
+  string fail_strategy = 6;
+  int32 timeout_ms = 7;
+  int32 sort_order = 8;
+}
+
+message WorkflowDefinition {
+  int64 id = 1;
+  string workflow_code = 2;
+  string workflow_name = 3;
+  string description = 4;
+  string status = 5;
+  repeated WorkflowNode nodes = 6;
+  int64 created_at = 7;
+  int64 updated_at = 8;
+}
+
+message CreateWorkflowRequest {
+  Meta meta = 1;
+  string workflow_code = 2;
+  string workflow_name = 3;
+  string description = 4;
+  repeated WorkflowNode nodes = 5;
+}
+
+message CreateWorkflowResponse {
+  int64 id = 1;
+  string workflow_code = 2;
+}
+
+message UpdateWorkflowRequest {
+  Meta meta = 1;
+  string workflow_code = 2;
+  string workflow_name = 3;
+  string description = 4;
+  repeated WorkflowNode nodes = 5;
+}
+
+message UpdateWorkflowResponse {
+  WorkflowDefinition workflow = 1;
+}
+
+message GetWorkflowRequest {
+  string workflow_code = 1;
+}
+
+message GetWorkflowResponse {
+  WorkflowDefinition workflow = 1;
+}
+
+message ListWorkflowsRequest {
+  string keyword = 1;
+  string status = 2;
+  PageRequest page = 3;
+}
+
+message ListWorkflowsResponse {
+  repeated WorkflowDefinition items = 1;
+  PageResponse page = 2;
+}
+
+message TriggerWorkflowRequest {
+  Meta meta = 1;
+  string workflow_code = 2;
+  TriggerType trigger_type = 3;
+  JobPayload payload = 4;
+}
+
+message TriggerWorkflowResponse {
+  string workflow_instance_no = 1;
+  string status = 2;
+}
+
+message WorkflowNodeRuntime {
+  string node_code = 1;
+  string node_name = 2;
+  string job_code = 3;
+  string status = 4;
+  string instance_no = 5;
+  string error_message = 6;
+}
+
+message GetWorkflowInstanceRequest {
+  string workflow_instance_no = 1;
+}
+
+message GetWorkflowInstanceResponse {
+  string workflow_instance_no = 1;
+  string workflow_code = 2;
+  string status = 3;
+  int64 start_time = 4;
+  int64 finish_time = 5;
+  repeated WorkflowNodeRuntime nodes = 6;
+  string error_message = 7;
+}

@@ -1,0 +1,83 @@
+syntax = "proto3";
+
+package scheduler.v1;
+
+option go_package = "github.com/Humphrey-He/star-flow-scheduler/proto/schedulerv1;schedulev1";
+
+import "common.proto";
+
+service ExecutorRegistryService {
+  rpc RegisterExecutor(RegisterExecutorRequest) returns (RegisterExecutorResponse);
+  rpc Heartbeat(HeartbeatRequest) returns (HeartbeatResponse);
+}
+
+service DispatchService {
+  rpc DispatchJob(DispatchJobRequest) returns (DispatchJobResponse);
+  rpc ReportResult(ReportResultRequest) returns (ReportResultResponse);
+}
+
+message RegisterExecutorRequest {
+  Meta meta = 1;
+  string executor_code = 2;
+  string host = 3;
+  string ip = 4;
+  string grpc_addr = 5;
+  string http_addr = 6;
+  repeated string tags = 7;
+  int32 capacity = 8;
+  string version = 9;
+  string metadata_json = 10;
+}
+
+message RegisterExecutorResponse {
+  int64 executor_id = 1;
+  int32 heartbeat_interval_sec = 2;
+}
+
+message HeartbeatRequest {
+  Meta meta = 1;
+  string executor_code = 2;
+  int32 current_load = 3;
+  int32 running_jobs = 4;
+  int64 timestamp = 5;
+}
+
+message HeartbeatResponse {
+  ExecutorStatus status = 1;
+  bool accept_new_jobs = 2;
+}
+
+message DispatchJobRequest {
+  Meta meta = 1;
+  string instance_no = 2;
+  string shard_no = 3;
+  string job_code = 4;
+  string handler_name = 5;
+  int32 timeout_ms = 6;
+  JobPayload payload = 7;
+  string trace_id = 8;
+  string idempotent_key = 9;
+  int32 shard_index = 10;
+  int32 shard_total = 11;
+}
+
+message DispatchJobResponse {
+  bool accepted = 1;
+  string message = 2;
+}
+
+message ReportResultRequest {
+  Meta meta = 1;
+  string instance_no = 2;
+  string shard_no = 3;
+  InstanceStatus status = 4;
+  int64 start_time = 5;
+  int64 finish_time = 6;
+  string error_code = 7;
+  string error_message = 8;
+  string result_summary = 9;
+}
+
+message ReportResultResponse {
+  bool ok = 1;
+}
