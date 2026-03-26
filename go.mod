@@ -1,6 +1,6 @@
 module github.com/Humphrey-He/star-flow-scheduler
 
-go 1.21
+go 1.20
 
 require (
 	entgo.io/ent v0.13.1
