@@ -38,6 +38,11 @@ func (l *ReportResultLogic) ReportResult(in *schedulev1.ReportResultRequest) (*s
 	_, err := l.svcCtx.InstanceSvc.ReportResult(l.ctx, in.InstanceNo, status, startAt, finishAt, strPtr(in.ResultSummary), strPtr(in.ErrorCode), strPtr(in.ErrorMessage))
 	if err != nil {
 		metricsx.Inc("scheduler_report_result_fail_total")
+		l.Logger.Errorw("scheduler report result failed",
+			logx.Field("instance_no", in.InstanceNo),
+			logx.Field("status", status),
+			logx.Field("error_message", err.Error()),
+		)
 		return nil, err
 	}
 	if status == state.StatusSuccess {
@@ -45,6 +50,10 @@ func (l *ReportResultLogic) ReportResult(in *schedulev1.ReportResultRequest) (*s
 	} else {
 		metricsx.Inc("scheduler_report_result_fail_total")
 	}
+	l.Logger.Infow("scheduler report result",
+		logx.Field("instance_no", in.InstanceNo),
+		logx.Field("status", status),
+	)
 	if l.svcCtx.WorkflowRuntime != nil {
 		instance, err := l.svcCtx.InstanceRepo.GetByInstanceNo(l.ctx, in.InstanceNo)
 		if err == nil && instance.WorkflowID != nil {
