@@ -150,7 +150,7 @@ func (s *Service) dispatchToExecutor(ctx context.Context, exec *ent.Executor, in
 		ShardNo:     "",
 		TimeoutMs:   int32(job.TimeoutMs),
 		Payload:     payload,
-		TraceId:     "",
+		TraceId:     instance.InstanceNo,
 	})
 	return err
 }
