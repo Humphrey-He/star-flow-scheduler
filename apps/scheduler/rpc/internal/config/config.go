@@ -4,5 +4,5 @@ import "github.com/zeromicro/go-zero/zrpc"
 
 type Config struct {
 	zrpc.RpcServerConf
-	MySQLDSN string `json:",optional"`
+	PostgresDSN string `json:",optional"`
 }

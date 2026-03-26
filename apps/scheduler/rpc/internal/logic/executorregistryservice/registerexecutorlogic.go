@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/Humphrey-He/star-flow-scheduler/apps/scheduler/rpc/internal/svc"
-	"github.com/Humphrey-He/star-flow-scheduler/internal/models"
+	"github.com/Humphrey-He/star-flow-scheduler/pkg/repo"
 	schedulerv1_schedulev1 "github.com/Humphrey-He/star-flow-scheduler/proto/pb/github.com/Humphrey-He/star-flow-scheduler/proto/schedulerv1"
 
 	"github.com/zeromicro/go-zero/core/logx"
@@ -34,7 +34,7 @@ func (l *RegisterExecutorLogic) RegisterExecutor(in *schedulerv1_schedulev1.Regi
 		tags = strings.Join(in.Tags, ",")
 	}
 
-	exec := &models.Executor{
+	upsert := repo.ExecutorUpsert{
 		ExecutorCode:  in.ExecutorCode,
 		Host:          in.Host,
 		IP:            in.Ip,
@@ -46,16 +46,16 @@ func (l *RegisterExecutorLogic) RegisterExecutor(in *schedulerv1_schedulev1.Regi
 		Version:       strPtr(in.Version),
 		Status:        "online",
 		LastHeartbeat: time.Now(),
-		Metadata:      strPtr(in.MetadataJson),
+		Metadata:      nil,
 	}
 
-	id, err := l.svcCtx.Executors.Upsert(l.ctx, exec)
+	_, err := l.svcCtx.Executors.Upsert(l.ctx, upsert)
 	if err != nil {
 		return nil, err
 	}
 
 	return &schedulerv1_schedulev1.RegisterExecutorResponse{
-		ExecutorId:           id,
+		ExecutorId:           0,
 		HeartbeatIntervalSec: heartbeatIntervalSec,
 	}, nil
 }

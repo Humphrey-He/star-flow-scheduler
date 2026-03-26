@@ -1,29 +1,31 @@
 package svc
 
 import (
-	"database/sql"
 	"fmt"
 
 	"github.com/Humphrey-He/star-flow-scheduler/apps/scheduler/rpc/internal/config"
-	"github.com/Humphrey-He/star-flow-scheduler/internal/db"
-	"github.com/Humphrey-He/star-flow-scheduler/internal/repo"
+	"github.com/Humphrey-He/star-flow-scheduler/pkg/db"
+	"github.com/Humphrey-He/star-flow-scheduler/pkg/ent"
+	"github.com/Humphrey-He/star-flow-scheduler/pkg/repo"
 )
 
 type ServiceContext struct {
 	Config    config.Config
-	DB        *sql.DB
+	DB        *db.DB
+	Ent       *ent.Client
 	Executors *repo.ExecutorRepository
 }
 
 func NewServiceContext(c config.Config) *ServiceContext {
-	database, err := db.Open(c.MySQLDSN)
+	database, err := db.Open(c.PostgresDSN)
 	if err != nil {
-		panic(fmt.Sprintf("open mysql failed: %v", err))
+		panic(fmt.Sprintf("open postgres failed: %v", err))
 	}
 
 	return &ServiceContext{
 		Config:    c,
 		DB:        database,
-		Executors: repo.NewExecutorRepository(database),
+		Ent:       database.Client,
+		Executors: repo.NewExecutorRepository(database.Client),
 	}
 }
