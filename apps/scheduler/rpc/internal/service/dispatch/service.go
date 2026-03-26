@@ -17,6 +17,7 @@ import (
 	"github.com/Humphrey-He/star-flow-scheduler/pkg/redisx"
 	schedulev1 "github.com/Humphrey-He/star-flow-scheduler/proto/pb/github.com/Humphrey-He/star-flow-scheduler/proto/schedulerv1"
 	"github.com/robfig/cron/v3"
+	"github.com/zeromicro/go-zero/core/logx"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -122,6 +123,12 @@ func (s *Service) DispatchInstance(ctx context.Context, instanceNo string) (*ent
 	}
 
 	if err := s.dispatchToExecutor(ctx, exec, instance, job); err != nil {
+		logx.WithContext(ctx).Errorw("scheduler dispatch to executor failed",
+			logx.Field("instance_no", instance.InstanceNo),
+			logx.Field("job_code", job.JobCode),
+			logx.Field("executor_code", exec.ExecutorCode),
+			logx.Field("error_message", err.Error()),
+		)
 		return nil, err
 	}
 
@@ -130,6 +137,11 @@ func (s *Service) DispatchInstance(ctx context.Context, instanceNo string) (*ent
 		return nil, err
 	}
 
+	logx.WithContext(ctx).Infow("scheduler dispatch success",
+		logx.Field("instance_no", instance.InstanceNo),
+		logx.Field("job_code", job.JobCode),
+		logx.Field("executor_code", exec.ExecutorCode),
+	)
 	return exec, nil
 }
 
