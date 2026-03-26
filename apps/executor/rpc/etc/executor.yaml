@@ -23,6 +23,7 @@ Runtime:
   WorkerCount: 4
   QueueSize: 100
   DefaultTimeoutMs: 60000
+  ShutdownTimeoutSec: 30
 Registry:
   HeartbeatIntervalSec: 5
   RegisterRetryTimes: 3

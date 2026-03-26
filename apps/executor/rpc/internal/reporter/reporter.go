@@ -39,6 +39,10 @@ func (r *Reporter) Report(result *model.TaskResult) {
 	}
 }
 
+func (r *Reporter) Pending() int {
+	return len(r.queue)
+}
+
 func (r *Reporter) loop(ctx context.Context) {
 	logger := logx.WithContext(ctx)
 	for {
@@ -78,4 +82,20 @@ func (r *Reporter) sendResult(ctx context.Context, result *model.TaskResult) err
 		}
 	}
 	return lastErr
+}
+
+func (r *Reporter) Stop(ctx context.Context) error {
+	ticker := time.NewTicker(200 * time.Millisecond)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-ticker.C:
+			if r.Pending() == 0 {
+				return nil
+			}
+		}
+	}
 }

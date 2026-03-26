@@ -50,9 +50,10 @@ func NewServiceContext(c config.Config) *ServiceContext {
 	)
 
 	rt := runtime.NewRuntime(runtime.Config{
-		WorkerCount:      c.Runtime.WorkerCount,
-		QueueSize:        c.Runtime.QueueSize,
-		DefaultTimeoutMs: c.Runtime.DefaultTimeoutMs,
+		WorkerCount:        c.Runtime.WorkerCount,
+		QueueSize:          c.Runtime.QueueSize,
+		DefaultTimeoutMs:   c.Runtime.DefaultTimeoutMs,
+		ShutdownTimeoutSec: c.Runtime.ShutdownTimeoutSec,
 	}, handlerRegistry, reporterSvc)
 
 	recv := receiver.NewReceiver(rt)
@@ -89,6 +90,17 @@ func (s *ServiceContext) Start(ctx context.Context) {
 	s.RegistrySvc.StartHeartbeat(ctx, time.Duration(s.Config.Registry.HeartbeatIntervalSec)*time.Second, s.buildHeartbeatRequest)
 }
 
+func (s *ServiceContext) Drain() {
+	s.Runtime.Drain()
+}
+
+func (s *ServiceContext) Shutdown(ctx context.Context) error {
+	if err := s.Runtime.Wait(ctx); err != nil {
+		return err
+	}
+	return s.Reporter.Stop(ctx)
+}
+
 func (s *ServiceContext) buildRegisterRequest() *registryclient.RegisterExecutorRequest {
 	cfg := s.Config.Executor
 	return &registryclient.RegisterExecutorRequest{
@@ -105,10 +117,13 @@ func (s *ServiceContext) buildRegisterRequest() *registryclient.RegisterExecutor
 
 func (s *ServiceContext) buildHeartbeatRequest() *registryclient.HeartbeatRequest {
 	cfg := s.Config.Executor
+	running := s.Runtime.RunningJobs()
+	queueSize := s.Runtime.QueueSize()
+	currentLoad := int32(running + int64(queueSize))
 	return &registryclient.HeartbeatRequest{
 		ExecutorCode: cfg.ExecutorCode,
-		CurrentLoad:  0,
-		RunningJobs:  0,
+		CurrentLoad:  currentLoad,
+		RunningJobs:  int32(running),
 		Timestamp:    time.Now().UnixMilli(),
 	}
 }
@@ -122,6 +137,9 @@ func ValidateConfig(c config.Config) error {
 	}
 	if c.Runtime.QueueSize <= 0 {
 		return fmt.Errorf("runtime queue_size must be positive")
+	}
+	if c.Runtime.ShutdownTimeoutSec <= 0 {
+		return fmt.Errorf("runtime shutdown_timeout_sec must be positive")
 	}
 	if c.Registry.HeartbeatIntervalSec <= 0 {
 		return fmt.Errorf("registry heartbeat_interval_sec must be positive")

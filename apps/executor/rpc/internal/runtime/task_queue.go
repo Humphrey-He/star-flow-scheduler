@@ -28,3 +28,7 @@ func (q *TaskQueue) Enqueue(task *model.Task) error {
 func (q *TaskQueue) Channel() <-chan *model.Task {
 	return q.ch
 }
+
+func (q *TaskQueue) Len() int {
+	return len(q.ch)
+}

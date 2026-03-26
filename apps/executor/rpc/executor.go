@@ -4,6 +4,10 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/Humphrey-He/star-flow-scheduler/apps/executor/rpc/internal/config"
 	dispatchserviceServer "github.com/Humphrey-He/star-flow-scheduler/apps/executor/rpc/internal/server/dispatchservice"
@@ -40,7 +44,20 @@ func main() {
 
 	fmt.Printf("Starting rpc server at %s...\n", c.ListenOn)
 	bgCtx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 	ctx.Start(bgCtx)
+
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
+	go func() {
+		<-sigCh
+		fmt.Println("executor shutdown signal received")
+		s.Stop()
+		ctx.Drain()
+		timeout := time.Duration(c.Runtime.ShutdownTimeoutSec) * time.Second
+		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), timeout)
+		defer shutdownCancel()
+		_ = ctx.Shutdown(shutdownCtx)
+		cancel()
+	}()
 	s.Start()
 }

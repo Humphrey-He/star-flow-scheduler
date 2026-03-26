@@ -23,9 +23,10 @@ type ExecutorConf struct {
 }
 
 type RuntimeConf struct {
-	WorkerCount      int
-	QueueSize        int
-	DefaultTimeoutMs int64
+	WorkerCount        int
+	QueueSize          int
+	DefaultTimeoutMs   int64
+	ShutdownTimeoutSec int64
 }
 
 type RegistryConf struct {

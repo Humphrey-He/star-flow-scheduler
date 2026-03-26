@@ -113,3 +113,19 @@ func TestQueueFull(t *testing.T) {
 		t.Fatalf("expected queue full error")
 	}
 }
+
+func TestRuntimeDrainRejectsEnqueue(t *testing.T) {
+	reg := handler.NewRegistry()
+	rep := &testReporter{ch: make(chan *model.TaskResult, 1)}
+	rt := NewRuntime(Config{
+		WorkerCount:        1,
+		QueueSize:          1,
+		DefaultTimeoutMs:   1000,
+		ShutdownTimeoutSec: 1,
+	}, reg, rep)
+
+	rt.Drain()
+	if err := rt.Enqueue(&model.Task{InstanceNo: "3"}); err == nil {
+		t.Fatalf("expected draining error")
+	}
+}

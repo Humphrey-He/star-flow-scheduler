@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync/atomic"
 	"time"
 
 	"github.com/Humphrey-He/star-flow-scheduler/apps/executor/rpc/internal/handler"
@@ -23,6 +24,7 @@ type WorkerPool struct {
 	reporter       Reporter
 	workerCount    int
 	defaultTimeout time.Duration
+	running        int64
 }
 
 func NewWorkerPool(queue *TaskQueue, registry *handler.Registry, reporter Reporter, workerCount int, defaultTimeout time.Duration) *WorkerPool {
@@ -52,7 +54,9 @@ func (p *WorkerPool) worker(ctx context.Context, idx int) {
 				continue
 			}
 			logger.Infof("worker=%d handle instance=%s handler=%s", idx, task.InstanceNo, task.HandlerName)
+			atomic.AddInt64(&p.running, 1)
 			p.executeTask(ctx, task)
+			atomic.AddInt64(&p.running, -1)
 		}
 	}
 }
@@ -109,4 +113,8 @@ func (p *WorkerPool) runHandler(ctx context.Context, h handler.JobHandler, paylo
 	}()
 
 	return h.Execute(ctx, payload)
+}
+
+func (p *WorkerPool) Running() int64 {
+	return atomic.LoadInt64(&p.running)
 }
