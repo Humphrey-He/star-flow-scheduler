@@ -36,7 +36,10 @@ func (r *Reporter) Report(result *model.TaskResult) {
 	select {
 	case r.queue <- result:
 	default:
-		logx.WithContext(context.Background()).Errorf("reporter queue full instance=%s shard=%s", result.InstanceNo, result.ShardNo)
+		logx.WithContext(context.Background()).Errorw("executor reporter queue full",
+			logx.Field("instance_no", result.InstanceNo),
+			logx.Field("shard_no", result.ShardNo),
+		)
 	}
 }
 
@@ -55,7 +58,11 @@ func (r *Reporter) loop(ctx context.Context) {
 				continue
 			}
 			if err := r.sendResult(ctx, result); err != nil {
-				logger.Errorf("report result failed instance=%s err=%v", result.InstanceNo, err)
+				logger.Errorw("executor report result failed",
+					logx.Field("instance_no", result.InstanceNo),
+					logx.Field("shard_no", result.ShardNo),
+					logx.Field("error_message", err.Error()),
+				)
 			}
 		}
 	}

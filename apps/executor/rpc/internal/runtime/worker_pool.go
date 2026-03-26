@@ -54,7 +54,13 @@ func (p *WorkerPool) worker(ctx context.Context, idx int) {
 			if task == nil {
 				continue
 			}
-			logger.Infof("worker=%d handle instance=%s handler=%s", idx, task.InstanceNo, task.HandlerName)
+			logger.Infow("executor task received",
+				logx.Field("worker", idx),
+				logx.Field("instance_no", task.InstanceNo),
+				logx.Field("job_code", task.JobCode),
+				logx.Field("handler_name", task.HandlerName),
+				logx.Field("shard_no", task.ShardNo),
+			)
 			atomic.AddInt64(&p.running, 1)
 			p.executeTask(ctx, task)
 			atomic.AddInt64(&p.running, -1)
@@ -78,6 +84,11 @@ func (p *WorkerPool) executeTask(ctx context.Context, task *model.Task) {
 		result.ErrorCode = "handler_not_found"
 		result.ErrorMessage = fmt.Sprintf("handler not registered: %s", task.HandlerName)
 		result.FinishTime = time.Now()
+		logx.WithContext(ctx).Errorw("executor handler not found",
+			logx.Field("instance_no", task.InstanceNo),
+			logx.Field("job_code", task.JobCode),
+			logx.Field("handler_name", task.HandlerName),
+		)
 		p.reporter.Report(result)
 		return
 	}
@@ -95,12 +106,23 @@ func (p *WorkerPool) executeTask(ctx context.Context, task *model.Task) {
 		result.Status = schedulev1.InstanceStatus_INSTANCE_STATUS_FAILED
 		result.ErrorCode = "execute_failed"
 		result.ErrorMessage = err.Error()
+		logx.WithContext(ctx).Errorw("executor task execute failed",
+			logx.Field("instance_no", task.InstanceNo),
+			logx.Field("job_code", task.JobCode),
+			logx.Field("handler_name", task.HandlerName),
+			logx.Field("error_message", err.Error()),
+		)
 	}
 
 	if errors.Is(execCtx.Err(), context.DeadlineExceeded) {
 		result.Status = schedulev1.InstanceStatus_INSTANCE_STATUS_FAILED
 		result.ErrorCode = "timeout"
 		result.ErrorMessage = "task timeout"
+		logx.WithContext(ctx).Errorw("executor task timeout",
+			logx.Field("instance_no", task.InstanceNo),
+			logx.Field("job_code", task.JobCode),
+			logx.Field("handler_name", task.HandlerName),
+		)
 	}
 
 	result.FinishTime = time.Now()
