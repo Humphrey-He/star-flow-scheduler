@@ -1,12 +1,15 @@
 module github.com/Humphrey-He/star-flow-scheduler
 
-go 1.24
+go 1.22
 
-toolchain go1.24.4
+toolchain go1.22.6
 
 require (
 	entgo.io/ent v0.13.1
 	github.com/go-sql-driver/mysql v1.8.1
+	github.com/google/uuid v1.6.0
+	github.com/robfig/cron/v3 v3.0.1
+	github.com/redis/go-redis/v9 v9.6.1
 	github.com/zeromicro/go-zero v1.7.0
 	google.golang.org/grpc v1.65.0
 	google.golang.org/protobuf v1.34.2
@@ -39,7 +42,6 @@ require (
 	github.com/google/gnostic-models v0.6.8 // indirect
 	github.com/google/go-cmp v0.6.0 // indirect
 	github.com/google/gofuzz v1.2.0 // indirect
-	github.com/google/uuid v1.6.0 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.20.0 // indirect
 	github.com/hashicorp/hcl/v2 v2.13.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
@@ -60,7 +62,6 @@ require (
 	github.com/prometheus/client_model v0.5.0 // indirect
 	github.com/prometheus/common v0.48.0 // indirect
 	github.com/prometheus/procfs v0.12.0 // indirect
-	github.com/redis/go-redis/v9 v9.6.1 // indirect
 	github.com/rivo/uniseg v0.2.0 // indirect
 	github.com/spaolacci/murmur3 v1.1.0 // indirect
 	github.com/spf13/cobra v1.7.0 // indirect
