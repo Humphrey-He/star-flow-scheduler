@@ -3,6 +3,7 @@ package metricsx
 import (
 	"expvar"
 	"sync"
+	"time"
 )
 
 var (
@@ -22,6 +23,13 @@ func Add(name string, delta int64) {
 func Set(name string, value int64) {
 	counter := getCounter(name)
 	counter.Set(value)
+}
+
+func ObserveDurationMs(name string, duration time.Duration) {
+	if duration <= 0 {
+		return
+	}
+	Add(name, duration.Milliseconds())
 }
 
 func getCounter(name string) *expvar.Int {
