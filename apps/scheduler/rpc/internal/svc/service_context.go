@@ -13,10 +13,12 @@ import (
 	"github.com/Humphrey-He/star-flow-scheduler/apps/scheduler/rpc/internal/service/registry"
 	"github.com/Humphrey-He/star-flow-scheduler/apps/scheduler/rpc/internal/service/scanner"
 	"github.com/Humphrey-He/star-flow-scheduler/apps/scheduler/rpc/internal/service/workflow"
+	"github.com/Humphrey-He/star-flow-scheduler/apps/scheduler/rpc/internal/state"
 	"github.com/Humphrey-He/star-flow-scheduler/pkg/db"
 	"github.com/Humphrey-He/star-flow-scheduler/pkg/ent"
 	"github.com/Humphrey-He/star-flow-scheduler/pkg/redisx"
 	pkgrepo "github.com/Humphrey-He/star-flow-scheduler/pkg/repo"
+	"github.com/Humphrey-He/star-flow-scheduler/pkg/types"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -25,18 +27,30 @@ type ServiceContext struct {
 	DB              *db.DB
 	Ent             *ent.Client
 	ExecutorRepo    *repo.ExecutorRepository
-	InstanceRepo    *repo.JobInstanceRepository
+	InstanceRepo    jobInstanceRepo
 	JobRepo         *repo.JobRepository
 	RegistrySvc     *registry.Service
 	DispatchSvc     *dispatch.Service
-	InstanceSvc     *instance.Service
+	InstanceSvc     instanceService
 	Redis           *redis.Client
 	DelayScanner    *scanner.DelayScanner
 	Dispatcher      *dispatch.ReadyDispatcher
 	Heartbeat       redisx.HeartbeatCache
-	WorkflowRuntime *workflow.RuntimeService
+	WorkflowRuntime workflowRuntime
 	cancel          context.CancelFunc
 	wg              sync.WaitGroup
+}
+
+type instanceService interface {
+	ReportResult(ctx context.Context, instanceNo string, status state.InstanceStatus, startTime *time.Time, finishTime *time.Time, resultSummary *string, errorCode *string, errorMessage *string) (int, error)
+}
+
+type workflowRuntime interface {
+	OnJobInstanceFinished(ctx context.Context, jobInstanceID int64, status types.WorkflowNodeStatus) error
+}
+
+type jobInstanceRepo interface {
+	GetByInstanceNo(ctx context.Context, instanceNo string) (*ent.JobInstance, error)
 }
 
 func NewServiceContext(c config.Config) *ServiceContext {
