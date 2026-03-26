@@ -166,35 +166,7 @@ func (s *RuntimeService) OnNodeJobFinished(ctx context.Context, workflowInstance
 	}
 	nodeInstanceMap := buildNodeInstanceMap(nodeInstances)
 
-	for _, downstream := range downstreams {
-		downstreamInst := nodeInstanceMap[downstream.NodeCode]
-		if downstreamInst == nil {
-			continue
-		}
-		if downstreamInst.JobInstanceID != nil || downstreamInst.Status != string(types.WorkflowNodeStatusPending) {
-			continue
-		}
-		upstreamStatuses := collectUpstreamStatuses(nodeMap, nodeInstanceMap, downstream)
-		if len(upstreamStatuses) == 0 {
-			continue
-		}
-		ready, err := s.resolver.CanTrigger(triggerConditionOf(downstream), upstreamStatuses)
-		if err != nil || !ready {
-			continue
-		}
-
-		updated, err := s.nodeInstances.UpdateStatusIf(ctx, workflowInstanceID, downstream.NodeCode, string(types.WorkflowNodeStatusPending), string(types.WorkflowNodeStatusReady), nil)
-		if err != nil || updated == 0 {
-			continue
-		}
-
-		jobInstance, err := s.dispatcher.CreateInstance(ctx, downstream.JobCode, "workflow", nil)
-		if err != nil {
-			continue
-		}
-		_, _ = s.nodeInstances.UpdateJobInstanceID(ctx, workflowInstanceID, downstream.NodeCode, int64(jobInstance.ID))
-		_, _ = s.nodeInstances.UpdateStatusIf(ctx, workflowInstanceID, downstream.NodeCode, string(types.WorkflowNodeStatusReady), string(types.WorkflowNodeStatusRunning), timePtr(time.Now()))
-	}
+	s.triggerDownstreamNodes(ctx, workflowInstanceID, downstreams, nodeMap, nodeInstanceMap)
 
 	return nil
 }
@@ -284,6 +256,38 @@ func triggerConditionOf(node *ent.WorkflowNode) string {
 		return "all_success"
 	}
 	return node.TriggerCondition
+}
+
+func (s *RuntimeService) triggerDownstreamNodes(ctx context.Context, workflowInstanceID int64, downstreams []*ent.WorkflowNode, nodeMap map[string]*ent.WorkflowNode, nodeInstanceMap map[string]*ent.WorkflowNodeInstance) {
+	for _, downstream := range downstreams {
+		downstreamInst := nodeInstanceMap[downstream.NodeCode]
+		if downstreamInst == nil {
+			continue
+		}
+		if downstreamInst.JobInstanceID != nil || downstreamInst.Status != string(types.WorkflowNodeStatusPending) {
+			continue
+		}
+		upstreamStatuses := collectUpstreamStatuses(nodeMap, nodeInstanceMap, downstream)
+		if len(upstreamStatuses) == 0 {
+			continue
+		}
+		ready, err := s.resolver.CanTrigger(triggerConditionOf(downstream), upstreamStatuses)
+		if err != nil || !ready {
+			continue
+		}
+
+		updated, err := s.nodeInstances.UpdateStatusIf(ctx, workflowInstanceID, downstream.NodeCode, string(types.WorkflowNodeStatusPending), string(types.WorkflowNodeStatusReady), nil)
+		if err != nil || updated == 0 {
+			continue
+		}
+
+		jobInstance, err := s.dispatcher.CreateInstance(ctx, downstream.JobCode, "workflow", nil)
+		if err != nil {
+			continue
+		}
+		_, _ = s.nodeInstances.UpdateJobInstanceID(ctx, workflowInstanceID, downstream.NodeCode, int64(jobInstance.ID))
+		_, _ = s.nodeInstances.UpdateStatusIf(ctx, workflowInstanceID, downstream.NodeCode, string(types.WorkflowNodeStatusReady), string(types.WorkflowNodeStatusRunning), timePtr(time.Now()))
+	}
 }
 
 func timePtr(t time.Time) *time.Time {
