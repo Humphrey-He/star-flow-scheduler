@@ -4,9 +4,11 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
+	"strings"
 	"time"
 
 	rpcrepo "github.com/Humphrey-He/star-flow-scheduler/apps/scheduler/rpc/internal/repo"
+	"github.com/Humphrey-He/star-flow-scheduler/apps/scheduler/rpc/internal/route"
 	"github.com/Humphrey-He/star-flow-scheduler/apps/scheduler/rpc/internal/state"
 	"github.com/Humphrey-He/star-flow-scheduler/pkg/ent"
 	pkgrepo "github.com/Humphrey-He/star-flow-scheduler/pkg/repo"
@@ -20,13 +22,18 @@ type Service struct {
 	jobs      *rpcrepo.JobRepository
 	instances *rpcrepo.JobInstanceRepository
 	executors *rpcrepo.ExecutorRepository
+	strategy  route.Strategy
 }
 
-func NewService(jobs *rpcrepo.JobRepository, instances *rpcrepo.JobInstanceRepository, executors *rpcrepo.ExecutorRepository) *Service {
+func NewService(jobs *rpcrepo.JobRepository, instances *rpcrepo.JobInstanceRepository, executors *rpcrepo.ExecutorRepository, strategy route.Strategy) *Service {
+	if strategy == nil {
+		strategy = route.NewStrategy("least_load")
+	}
 	return &Service{
 		jobs:      jobs,
 		instances: instances,
 		executors: executors,
+		strategy:  strategy,
 	}
 }
 
@@ -63,7 +70,7 @@ func (s *Service) DispatchInstance(ctx context.Context, instanceNo string) (*ent
 		return nil, err
 	}
 
-	execs, err := s.executors.ListOnline(ctx, 1)
+	execs, err := s.executors.ListOnline(ctx, 100)
 	if err != nil {
 		return nil, err
 	}
@@ -71,7 +78,25 @@ func (s *Service) DispatchInstance(ctx context.Context, instanceNo string) (*ent
 		return nil, fmt.Errorf("no online executor")
 	}
 
-	exec := execs[0]
+	nodes := toExecutorNodes(execs)
+	jobSnap := route.JobSnapshot{
+		JobCode:     job.JobCode,
+		RouteKey:    ptrString(instance.Payload),
+		ExecutorTag: ptrString(job.ExecutorTag),
+	}
+	strategy := s.strategy
+	if job.RouteStrategy != "" {
+		strategy = route.NewStrategy(job.RouteStrategy)
+	}
+	selected, err := strategy.Select(ctx, jobSnap, nodes)
+	if err != nil {
+		return nil, err
+	}
+	exec := findExecutor(execs, selected)
+	if exec == nil {
+		return nil, fmt.Errorf("selected executor not found")
+	}
+
 	if err := s.dispatchToExecutor(ctx, exec, instance, job); err != nil {
 		return nil, err
 	}
@@ -111,6 +136,46 @@ func ptrString(v *string) string {
 		return ""
 	}
 	return *v
+}
+
+func toExecutorNodes(execs []*ent.Executor) []route.ExecutorNode {
+	nodes := make([]route.ExecutorNode, 0, len(execs))
+	for _, exec := range execs {
+		nodes = append(nodes, route.ExecutorNode{
+			ID:           int64(exec.ID),
+			ExecutorCode: exec.ExecutorCode,
+			Tags:         splitTags(ptrString(exec.Tags)),
+			CurrentLoad:  exec.CurrentLoad,
+		})
+	}
+	return nodes
+}
+
+func splitTags(tags string) []string {
+	if tags == "" {
+		return []string{}
+	}
+	parts := strings.Split(tags, ",")
+	out := make([]string, 0, len(parts))
+	for _, p := range parts {
+		p = strings.TrimSpace(p)
+		if p != "" {
+			out = append(out, p)
+		}
+	}
+	return out
+}
+
+func findExecutor(execs []*ent.Executor, selected *route.ExecutorNode) *ent.Executor {
+	if selected == nil {
+		return nil
+	}
+	for _, exec := range execs {
+		if int64(exec.ID) == selected.ID {
+			return exec
+		}
+	}
+	return nil
 }
 
 func newInstanceNo() string {

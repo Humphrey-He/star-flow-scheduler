@@ -43,7 +43,7 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		InstanceRepo: instanceRepo,
 		JobRepo:      jobRepo,
 		RegistrySvc:  registry.NewService(executorRepo),
-		DispatchSvc:  dispatch.NewService(jobRepo, instanceRepo, executorRepo),
+		DispatchSvc:  dispatch.NewService(jobRepo, instanceRepo, executorRepo, nil),
 		InstanceSvc:  instance.NewService(instanceRepo),
 	}
 }
