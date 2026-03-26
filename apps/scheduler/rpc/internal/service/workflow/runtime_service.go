@@ -114,6 +114,22 @@ func (s *RuntimeService) CreateWorkflowInstance(ctx context.Context, workflowCod
 	return created, rootNodes, nil
 }
 
+func (s *RuntimeService) TriggerWorkflow(ctx context.Context, workflowCode string) (*ent.WorkflowInstance, error) {
+	instance, rootNodes, err := s.CreateWorkflowInstance(ctx, workflowCode)
+	if err != nil {
+		return nil, err
+	}
+	for _, node := range rootNodes {
+		jobInstance, err := s.dispatcher.CreateInstance(ctx, node.JobCode, "workflow", nil)
+		if err != nil {
+			continue
+		}
+		_, _ = s.nodeInstances.UpdateJobInstanceID(ctx, instance.ID, node.NodeCode, int64(jobInstance.ID))
+		_, _ = s.nodeInstances.UpdateStatusIf(ctx, instance.ID, node.NodeCode, string(types.WorkflowNodeStatusReady), string(types.WorkflowNodeStatusRunning), timePtr(time.Now()))
+	}
+	return instance, nil
+}
+
 func newWorkflowInstanceNo() string {
 	return fmt.Sprintf("WF-%d", time.Now().UnixNano())
 }
